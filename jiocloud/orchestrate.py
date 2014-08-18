@@ -28,21 +28,26 @@ class DeploymentOrchestrator(object):
         self.etcd.write('/current_version', new_version)
 
     def pending_update(self):
-        return not (self.current_version() == self.get_currently_running_version())
+        return not (self.current_version() == self.local_version())
 
     def current_version(self):
         return self.etcd.read('/current_version').value.strip()
 
     def update_own_info(self, hostname, interval=60):
-        version_dir = '/running_version/%s' % self.get_currently_running_version()
+        version_dir = '/running_version/%s' % self.local_version()
         self.etcd.write(version_dir, None, dir=True, ttl=(interval*2+10))
         self.etcd.write('%s/%s' % (version_dir, socket.gethostname()),
                         str(time.time()))
 
-    def get_currently_running_version(self):
+    def local_version(self, new_value=None):
+        mode = new_value is None and 'r' or 'w'
+
         try:
-            with open('/etc/current_version', 'r') as fp:
-                return fp.read().strip()
+            with open('/etc/current_version', mode) as fp:
+                if new_value is None:
+                    return fp.read().strip()
+                else:
+                    fp.write(new_value)
         except IOError, e:
             if e.errno == errno.ENOENT:
                 return ''
@@ -61,6 +66,9 @@ if __name__ == '__main__':
 
     pending_update = subparsers.add_parser('pending_update', help='Check for pending update')
 
+    local_version_parser = subparsers.add_parser('local_version', help='Get or set local version')
+    local_version_parser.add_argument('version', nargs='?', help="If given, set this as the local version")
+
     update_own_info_parser = subparsers.add_parser('update_own_info', help="Update host's own info")
     update_own_info_parser.add_argument('--interval', type=int, default=60, help="Update interval")
     update_own_info_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
@@ -74,6 +82,8 @@ if __name__ == '__main__':
         print do.current_version()
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname)
+    elif args.subcmd == 'local_version':
+        do.local_version(args.version)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         if pending_update:
