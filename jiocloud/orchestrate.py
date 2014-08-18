@@ -48,6 +48,7 @@ class DeploymentOrchestrator(object):
                     return fp.read().strip()
                 else:
                     fp.write(new_value)
+                    return new_value
         except IOError, e:
             if e.errno == errno.ENOENT:
                 return ''
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname)
     elif args.subcmd == 'local_version':
-        do.local_version(args.version)
+        print do.local_version(args.version)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         if pending_update:
