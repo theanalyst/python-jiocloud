@@ -33,11 +33,11 @@ class DeploymentOrchestrator(object):
     def current_version(self):
         return self.etcd.read('/current_version').value.strip()
 
-    def update_own_info(self, hostname, interval=60):
-        version_dir = '/running_version/%s' % self.local_version()
-        self.etcd.write(version_dir, None, dir=True, ttl=(interval*2+10))
-        self.etcd.write('%s/%s' % (version_dir, socket.gethostname()),
-                        str(time.time()))
+    def update_own_info(self, hostname, interval=60, version=None):
+        version = version or self.local_version()
+        version_dir = '/running_version/%s' % version
+        self.etcd.write('%s/%s' % (version_dir, hostname), str(time.time()))
+        self.etcd.write(version_dir, None, dir=True, prevExist=True, ttl=(interval*2+10))
 
     def local_version(self, new_value=None):
         mode = new_value is None and 'r' or 'w'
@@ -74,6 +74,8 @@ if __name__ == '__main__':
     update_own_info_parser.add_argument('--interval', type=int, default=60, help="Update interval")
     update_own_info_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
                                         help="This system's hostname")
+    update_own_info_parser.add_argument('--version', type=str,
+                                        help="Override version to report into etcd")
     args = parser.parse_args()
 
     do = DeploymentOrchestrator(args.host, args.port)
@@ -82,7 +84,7 @@ if __name__ == '__main__':
     elif args.subcmd == 'current_version':
         print do.current_version()
     elif args.subcmd == 'update_own_info':
-        do.update_own_info(args.hostname)
+        do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'local_version':
         print do.local_version(args.version)
     elif args.subcmd == 'pending_update':
@@ -92,4 +94,3 @@ if __name__ == '__main__':
         else:
             print 'No updates pending'
         sys.exit(not pending_update)
-
