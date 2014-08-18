@@ -54,9 +54,6 @@ if __name__ == '__main__':
     pending_update = subparsers.add_parser('pending_update', help='Check for pending update')
     args = parser.parse_args()
     do = DeploymentOrchestrator(args.host, args.port)
-#    print 'Curently running version:', do.get_currently_running_version()
-#    print 'Available version:', do.current_version()
-#    print 'Should update: ', do.pending_update()
     if args.subcmd == 'trigger_update':
         do.trigger_update(args.version)
     elif args.subcmd == 'current_version':
