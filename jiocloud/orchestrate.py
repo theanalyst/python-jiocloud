@@ -39,6 +39,10 @@ class DeploymentOrchestrator(object):
         self.etcd.write('%s/%s' % (version_dir, hostname), str(time.time()))
         self.etcd.write(version_dir, None, dir=True, prevExist=True, ttl=(interval*2+10))
 
+    def running_versions(self):
+        res = self.etcd.read('/running_version')
+        return [x.key.split('/')[-1] for x in res.children]
+
     def local_version(self, new_value=None):
         mode = new_value is None and 'r' or 'w'
 
@@ -76,6 +80,7 @@ if __name__ == '__main__':
                                         help="This system's hostname")
     update_own_info_parser.add_argument('--version', type=str,
                                         help="Override version to report into etcd")
+    running_versions_parser = subparsers.add_parser('running_versions', help="List currently running versions")
     args = parser.parse_args()
 
     do = DeploymentOrchestrator(args.host, args.port)
@@ -87,6 +92,8 @@ if __name__ == '__main__':
         do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'local_version':
         print do.local_version(args.version)
+    elif args.subcmd == 'running_versions':
+        print '\n'.join(do.running_versions())
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         if pending_update:
