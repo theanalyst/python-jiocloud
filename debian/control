@@ -1,0 +1,13 @@
+Source: python-jiocloud
+Section: admin
+Priority: optional
+Maintainer: Soren Hansen <Soren.Hansen@ril.com>
+Build-Depends: python-setuptools (>= 0.6b3), python-all (>= 2.6.6-3), debhelper (>= 8)
+Standards-Version: 3.9.5
+Homepage: https://github.com/JioCloud/python-rjil
+
+Package: python-jiocloud
+Architecture: all
+Depends: ${python:Depends}, ${misc:Depends},
+Description: Utilities for managing JioCloud
+ Currently this package only contains a module to orchestrate updates.
