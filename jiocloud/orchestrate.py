@@ -48,7 +48,8 @@ class DeploymentOrchestrator(object):
 
     def running_versions(self):
         res = self.etcd.read('/running_version')
-        return [x.key.split('/')[-1] for x in res.children]
+        return filter(lambda x: x != 'running_version',
+                      [x.key.split('/')[-1] for x in res.children])
 
     def check_single_version(self, version):
         desired_version_seen = False
