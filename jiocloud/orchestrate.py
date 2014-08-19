@@ -19,6 +19,7 @@ import errno
 import socket
 import sys
 import time
+from urllib3.exceptions import HTTPError
 
 class DeploymentOrchestrator(object):
     def __init__(self, host='127.0.0.1', port=4001):
@@ -32,6 +33,12 @@ class DeploymentOrchestrator(object):
 
     def current_version(self):
         return self.etcd.read('/current_version').value.strip()
+
+    def ping(self):
+        try:
+            return bool(self.etcd.machines)
+        except HTTPError:
+            return False
 
     def update_own_info(self, hostname, interval=60, version=None):
         version = version or self.local_version()
@@ -69,6 +76,8 @@ if __name__ == '__main__':
 
     current_version_parser = subparsers.add_parser('current_version', help='Get available version')
 
+    ping_parser = subparsers.add_parser('ping', help='Ping etcd')
+
     pending_update = subparsers.add_parser('pending_update', help='Check for pending update')
 
     local_version_parser = subparsers.add_parser('local_version', help='Get or set local version')
@@ -90,6 +99,14 @@ if __name__ == '__main__':
         print do.current_version()
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname, version=args.version)
+    elif args.subcmd == 'ping':
+        did_it_work = do.ping()
+        if did_it_work:
+            print 'Connection succesful'
+            sys.exit(0)
+        else:
+            print 'Connection failed'
+            sys.exit(1)
     elif args.subcmd == 'local_version':
         print do.local_version(args.version)
     elif args.subcmd == 'running_versions':
