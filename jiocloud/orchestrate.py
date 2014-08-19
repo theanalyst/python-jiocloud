@@ -50,6 +50,15 @@ class DeploymentOrchestrator(object):
         res = self.etcd.read('/running_version')
         return [x.key.split('/')[-1] for x in res.children]
 
+    def check_single_version(self, version):
+        desired_version_seen = False
+        for v in self.running_versions():
+            if v != version:
+                return False
+            else:
+                desired_version_seen = True
+        return desired_version_seen
+
     def local_version(self, new_value=None):
         mode = new_value is None and 'r' or 'w'
 
@@ -90,6 +99,9 @@ if __name__ == '__main__':
     update_own_info_parser.add_argument('--version', type=str,
                                         help="Override version to report into etcd")
     running_versions_parser = subparsers.add_parser('running_versions', help="List currently running versions")
+
+    check_single_version_parser = subparsers.add_parser('check_single_version', help="Check if the given version is the only one currently running")
+    check_single_version_parser.add_argument('version', help='The version to check for')
     args = parser.parse_args()
 
     do = DeploymentOrchestrator(args.host, args.port)
@@ -97,6 +109,8 @@ if __name__ == '__main__':
         do.trigger_update(args.version)
     elif args.subcmd == 'current_version':
         print do.current_version()
+    elif args.subcmd == 'check_single_version':
+        print do.check_single_version(args.version)
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'ping':
