@@ -51,14 +51,16 @@ class DeploymentOrchestrator(object):
         return filter(lambda x: x != 'running_version',
                       [x.key.split('/')[-1] for x in res.children])
 
-    def check_single_version(self, version):
+    def check_single_version(self, version, verbose=False):
         desired_version_seen = False
-        for v in self.running_versions():
-            if v != version:
-                return False
-            else:
-                desired_version_seen = True
-        return desired_version_seen
+        running_versions = self.running_versions()
+        unwanted_versions = filter(lambda x:x != version,
+                                   running_versions)
+        wanted_version_found = version in running_versions
+        if verbose:
+            print 'Wanted version found:', wanted_version_found
+            print 'Unwanted versions found:', ', '.join(unwanted_versions)
+        return wanted_version_found and not unwanted_versions
 
     def local_version(self, new_value=None):
         mode = new_value is None and 'r' or 'w'
@@ -103,6 +105,7 @@ if __name__ == '__main__':
 
     check_single_version_parser = subparsers.add_parser('check_single_version', help="Check if the given version is the only one currently running")
     check_single_version_parser.add_argument('version', help='The version to check for')
+    check_single_version_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
     args = parser.parse_args()
 
     do = DeploymentOrchestrator(args.host, args.port)
@@ -111,7 +114,7 @@ if __name__ == '__main__':
     elif args.subcmd == 'current_version':
         print do.current_version()
     elif args.subcmd == 'check_single_version':
-        sys.exit(not do.check_single_version(args.version))
+        sys.exit(not do.check_single_version(args.version, args.verbose))
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'ping':
