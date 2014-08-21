@@ -111,7 +111,7 @@ if __name__ == '__main__':
     elif args.subcmd == 'current_version':
         print do.current_version()
     elif args.subcmd == 'check_single_version':
-        print do.check_single_version(args.version)
+        sys.exit(not do.check_single_version(args.version))
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'ping':
