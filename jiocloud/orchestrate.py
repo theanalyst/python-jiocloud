@@ -19,6 +19,7 @@ import errno
 import socket
 import sys
 import time
+import urllib3
 from urllib3.exceptions import HTTPError
 
 class DeploymentOrchestrator(object):
@@ -62,6 +63,11 @@ class DeploymentOrchestrator(object):
             print 'Unwanted versions found:', ', '.join(unwanted_versions)
         return wanted_version_found and not unwanted_versions
 
+    def new_discovery_token(self, discovery_endpoint):
+        http = urllib3.PoolManager()
+        r = http.request('GET', '%snew' % (discovery_endpoint,))
+        return r.data.split('/')[-1]
+
     def local_version(self, new_value=None):
         mode = new_value is None and 'r' or 'w'
 
@@ -103,6 +109,9 @@ if __name__ == '__main__':
                                         help="Override version to report into etcd")
     running_versions_parser = subparsers.add_parser('running_versions', help="List currently running versions")
 
+    new_discovery_token_parser = subparsers.add_parser('new_discovery_token', help="Get new discovery token")
+    new_discovery_token_parser.add_argument('--endpoint', default='https://discovery.etcd.io/', help='Discovery token endpoint')
+
     check_single_version_parser = subparsers.add_parser('check_single_version', help="Check if the given version is the only one currently running")
     check_single_version_parser.add_argument('version', help='The version to check for')
     check_single_version_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
@@ -129,6 +138,8 @@ if __name__ == '__main__':
         print do.local_version(args.version)
     elif args.subcmd == 'running_versions':
         print '\n'.join(do.running_versions())
+    elif args.subcmd == 'new_discovery_token':
+        print do.new_discovery_token(args.endpoint)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         if pending_update:
