@@ -91,7 +91,6 @@ if __name__ == '__main__':
     argparser.add_argument('resource_file_path', help='Path to resource file')
     argparser.add_argument('--project_tag', help='Project tag')
     args = argparser.parse_args()
-    path = get_resource_file_path(os.getcwd() + "/environment_resources", 'prod')
     nova_client = get_nova_client()
     servers = servers_to_create(get_nova_client(),
                                 args.resource_file_path,
