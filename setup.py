@@ -20,7 +20,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='jiocloud',
-    version='0.2',
+    version='0.3',
     description='Various Python utilities used for JioCloud',
     author='Soren Hansen',
     author_email='Soren.Hansen@ril.com',
