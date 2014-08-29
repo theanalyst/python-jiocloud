@@ -86,8 +86,14 @@ def create_server(nova_client, name, flavor, image, networks, **keys):
         status = instance.status
         print "status: %s" % status
 
-# main
-#path = get_resource_file_path(os.getcwd() + "/environment_resources", 'prod')
-#nova_client = get_nova_client()
-#servers = servers_to_create(get_nova_client(), path, project_tag='dan123')
-#create_servers(nova_client, servers)
+if __name__ == '__main__':
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('resource_file_path', help='Path to resource file')
+    argparser.add_argument('--project_tag', help='Project tag')
+    args = argparser.parse_args()
+    path = get_resource_file_path(os.getcwd() + "/environment_resources", 'prod')
+    nova_client = get_nova_client()
+    servers = servers_to_create(get_nova_client(),
+                                args.resource_file_path,
+                                project_tag=args.project_tag)
+    create_servers(nova_client, servers)
