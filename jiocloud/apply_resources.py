@@ -61,13 +61,14 @@ def servers_to_create(nova_client, resource_file, project_tag=None):
     desired_servers = generate_desired_servers(resources, project_tag)
     return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
-def create_servers(nova_client, servers):
+def create_servers(nova_client, servers, userdata):
+    userdata_file = file(userdata)
     for s in servers:
-        create_server(nova_client, **s)
+        create_server(nova_client, userdata_file, **s)
 
 images={}
 flavors={}
-def create_server(nova_client, name, flavor, image, networks, **keys):
+def create_server(nova_client, userdata_file, name, flavor, image, networks, **keys):
     print "Creating server %s"%(name)
     images[image] = images.get(image, nova_client.images.find(name=image))
     flavors[flavor] = flavors.get(flavor, nova_client.flavors.find(name=flavor))
@@ -77,6 +78,7 @@ def create_server(nova_client, name, flavor, image, networks, **keys):
       image=images[image],
       flavor=flavors[flavor],
       nics=net_list,
+      userdata=userdata_file,
     )
 
     # Poll at 5 second intervals, until the status is no longer 'BUILD'
@@ -100,6 +102,7 @@ if __name__ == '__main__':
 
     apply_parser  = subparsers.add_parser('apply', help='Apply a resource file')
     apply_parser.add_argument('resource_file_path', help='Path to resource file')
+    apply_parser.add_argument('userdata', help='Path of userdata to apply to all nodes')
     apply_parser.add_argument('--project_tag', help='Project tag')
 
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
@@ -111,7 +114,7 @@ if __name__ == '__main__':
         servers = servers_to_create(get_nova_client(),
                                     args.resource_file_path,
                                     project_tag=args.project_tag)
-        create_servers(nova_client, servers)
+        create_servers(nova_client, servers, args.userdata)
     elif args.action == 'delete':
         if not args.project_tag:
             argparser.error("Must set project tag when action is delete")
