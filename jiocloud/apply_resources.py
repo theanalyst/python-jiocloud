@@ -63,8 +63,8 @@ def servers_to_create(nova_client, resource_file, project_tag=None):
     return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
 def create_servers(nova_client, servers, userdata):
-    userdata_file = file(userdata)
     for s in servers:
+        userdata_file = file(userdata)
         create_server(nova_client, userdata_file, **s)
 
 images={}
