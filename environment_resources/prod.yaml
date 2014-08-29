@@ -1,0 +1,13 @@
+resources:
+  foo:
+    number: 2
+    flavor: m1.medium
+    image: ubuntu12.04
+    networks:
+      - ed1755a0-1f0b-47b9-b9ec-6ef5cbb77c61
+  bar:
+    number: 2
+    flavor: m1.medium
+    image: ubuntu12.04
+    networks:
+      - ed1755a0-1f0b-47b9-b9ec-6ef5cbb77c61
