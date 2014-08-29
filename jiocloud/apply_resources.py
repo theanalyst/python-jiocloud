@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-import yaml
-import os
+import argparse
 import keystoneclient.v2_0.client as ksclient
+import os
 import time
+import yaml
 from novaclient import client as novaclient
 
 """
@@ -33,8 +34,8 @@ def get_existing_servers(nova_client, project_tag=None):
     """
     servers = nova_client.servers.list()
     if project_tag:
-        servers = [elem.name for elem in servers if elem.name.endswith('_' + project_tag) ]
-    return servers
+        servers = [elem for elem in servers if elem.name.endswith('_' + project_tag) ]
+    return [s.name for s in servers]
 
 def generate_desired_servers(resources, project_tag=None):
     """
@@ -54,8 +55,8 @@ def generate_desired_servers(resources, project_tag=None):
 
 def servers_to_create(nova_client, resource_file, project_tag=None):
     resources = read_resources(resource_file)
-    existing_servers     = get_existing_servers(nova_client, project_tag=project_tag)
-    desired_servers      = generate_desired_servers(resources, project_tag)
+    existing_servers = get_existing_servers(nova_client, project_tag=project_tag)
+    desired_servers = generate_desired_servers(resources, project_tag)
     return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
 def create_servers(nova_client, servers):
@@ -66,11 +67,9 @@ images={}
 flavors={}
 def create_server(nova_client, name, flavor, image, networks, **keys):
     print "Creating server %s"%(name)
-    images[image]   = images.get(image, nova_client.images.find(name=image))
+    images[image] = images.get(image, nova_client.images.find(name=image))
     flavors[flavor] = flavors.get(flavor, nova_client.flavors.find(name=flavor))
-    net_list=[]
-    for n in networks:
-      net_list.append({'net-id': n})
+    net_list=[{'net-id': n} for n in networks]
     instance = nova_client.servers.create(
       name=name,
       image=images[image],
