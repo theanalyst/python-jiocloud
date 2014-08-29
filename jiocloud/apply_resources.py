@@ -65,11 +65,18 @@ def servers_to_create(nova_client, resource_file, project_tag=None):
 def create_servers(nova_client, servers, userdata):
     for s in servers:
         userdata_file = file(userdata)
-        create_server(nova_client, userdata_file, **s)
+        create_server(nova_client, userdata_file, key_name, **s)
 
 images={}
 flavors={}
-def create_server(nova_client, userdata_file, name, flavor, image, networks, **keys):
+def create_server(nova_client,
+                  userdata_file,
+                  key_name,
+                  name,
+                  flavor,
+                  image,
+                  networks,
+                  **keys):
     print "Creating server %s"%(name)
     images[image] = images.get(image, nova_client.images.get(image))
     flavors[flavor] = flavors.get(flavor, nova_client.flavors.get(flavor))
@@ -80,6 +87,7 @@ def create_server(nova_client, userdata_file, name, flavor, image, networks, **k
       flavor=flavors[flavor],
       nics=net_list,
       userdata=userdata_file,
+      key_name=key_name,
     )
 
     # Poll at 5 second intervals, until the status is no longer 'BUILD'
@@ -105,6 +113,7 @@ if __name__ == '__main__':
     apply_parser.add_argument('resource_file_path', help='Path to resource file')
     apply_parser.add_argument('userdata', help='Path of userdata to apply to all nodes')
     apply_parser.add_argument('--project_tag', help='Project tag')
+    apply_parser.add_argument('--key_name', help='Name of key pair')
 
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project_tag', help='Id of project to delete')
@@ -114,8 +123,9 @@ if __name__ == '__main__':
     if args.action == 'apply':
         servers = servers_to_create(get_nova_client(),
                                     args.resource_file_path,
-                                    project_tag=args.project_tag)
-        create_servers(nova_client, servers, args.userdata)
+                                    project_tag=args.project_tag,
+                                    )
+        create_servers(nova_client, servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
         if not args.project_tag:
             argparser.error("Must set project tag when action is delete")
