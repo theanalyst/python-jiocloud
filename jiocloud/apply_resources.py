@@ -71,8 +71,8 @@ images={}
 flavors={}
 def create_server(nova_client, userdata_file, name, flavor, image, networks, **keys):
     print "Creating server %s"%(name)
-    images[image] = images.get(image, nova_client.images.find(name=image))
-    flavors[flavor] = flavors.get(flavor, nova_client.flavors.find(name=flavor))
+    images[image] = images.get(image, nova_client.images.get(image))
+    flavors[flavor] = flavors.get(flavor, nova_client.flavors.get(flavor))
     net_list=[{'net-id': n} for n in networks]
     instance = nova_client.servers.create(
       name=name,
