@@ -29,5 +29,5 @@ setup(
     include_package_data=True,
     license='Apache 2.0',
     keywords='etcd openstack cloud',
-    install_requires=['etcd', 'IPy'],
+    install_requires=['etcd', 'IPy', 'mock'],
 )
