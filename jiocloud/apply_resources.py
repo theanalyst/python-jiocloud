@@ -114,22 +114,26 @@ class ApplyResources(object):
             nova_client.servers.delete(uuid)
 
 class TestApplyResources(unittest.TestCase):
+    server_data = [('foo1_abc123', '93138146-2275-4e18-b41e-3957aa13e73a'),
+                   ('foo2_abc124', '26af0276-83e1-4b68-870e-ff3250be8e8f'),
+                   ('foo4_bc124', '677388b7-b5ac-418b-b671-6b930dc8003a'),
+                   ('bar2', '381877b2-12c5-4831-95ed-1d7518bb7e8c'),
+                   ('baz', '59e5dd8d-2063-4943-98de-df206e462849')]
+
+    def fake_server_data(self, nova_client):
+        def fake_server(name, uuid):
+            s = mock.Mock()
+            s.configure_mock(name=name, id=uuid)
+            return s
+        server_list = [fake_server(*s) for s in self.server_data]
+        nova_client.servers.list.return_value = server_list
+
     def test_get_existing_servers(self):
         apply_resources = ApplyResources()
         with mock.patch.object(apply_resources, 'get_nova_client') as get_nova_client:
-            server_data = [('foo1_abc123', '93138146-2275-4e18-b41e-3957aa13e73a'),
-                           ('foo2_abc124', '26af0276-83e1-4b68-870e-ff3250be8e8f'),
-                           ('foo4_bc124', '677388b7-b5ac-418b-b671-6b930dc8003a'),
-                           ('bar2', '381877b2-12c5-4831-95ed-1d7518bb7e8c'),
-                           ('baz', '59e5dd8d-2063-4943-98de-df206e462849')]
-            def fake_server(name, uuid):
-                s = mock.Mock()
-                s.configure_mock(name=name, id=uuid)
-                return s
-            server_list = [fake_server(*s) for s in server_data]
             nova_client = get_nova_client.return_value
-            nova_client.servers.list.return_value = server_list
-            self.assertEquals(apply_resources.get_existing_servers(), [s[0] for s in server_data])
+            self.fake_server_data(nova_client)
+            self.assertEquals(apply_resources.get_existing_servers(), [s[0] for s in self.server_data])
             self.assertEquals(apply_resources.get_existing_servers(project_tag='abc123'),
                               ['foo1_abc123'])
             self.assertEquals(apply_resources.get_existing_servers(project_tag='abc124'),
@@ -161,8 +165,25 @@ class TestApplyResources(unittest.TestCase):
         self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0 },
                                                                     'bar': {'number': 2 }}),
                           [{'name': 'bar1', 'number': 2},
-                           {'name': 'bar2', 'number': 2},
-                          ])
+                           {'name': 'bar2', 'number': 2}])
+
+    def test_servers_to_create(self):
+        apply_resources = ApplyResources()
+        with mock.patch.multiple(apply_resources,
+                                 get_nova_client=mock.DEFAULT,
+                                 read_resources=mock.DEFAULT) as mocks:
+            get_nova_client = mocks['get_nova_client']
+            read_resources = mocks['read_resources']
+            read_resources.return_value = {'foo': {'number': 1},
+                                           'bar': {'number': 2}}
+
+            nova_client = get_nova_client.return_value
+            self.fake_server_data(nova_client)
+
+            self.assertEquals(apply_resources.servers_to_create('fake_path'),
+                              [{'name': 'foo1', 'number': 1},
+                               {'name': 'bar1', 'number': 2}])
+
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     subparsers = argparser.add_subparsers(dest='action', help='Action to perform')
