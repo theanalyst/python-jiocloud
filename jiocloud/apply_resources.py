@@ -21,13 +21,13 @@ def get_nova_creds_from_env():
     d['region_name'] = os.environ.get('OS_REGION_NAME')
     return d
 
-def read_resources(path):
-    fp = file(path)
-    return yaml.load(fp)['resources']
-
 class ApplyResources(object):
     def __init__(self):
         self.nova_client = None
+
+    def read_resources(self, path):
+        fp = file(path)
+        return yaml.load(fp)['resources']
 
     def get_nova_client(self):
         if not self.nova_client:
@@ -63,15 +63,15 @@ class ApplyResources(object):
         return servers_to_create
 
     def servers_to_create(self, resource_file, project_tag=None):
-        resources = read_resources(resource_file)
-        existing_servers = get_existing_servers(project_tag=project_tag)
-        desired_servers = generate_desired_servers(resources, project_tag)
+        resources = self.read_resources(resource_file)
+        existing_servers = self.get_existing_servers(project_tag=project_tag)
+        desired_servers = self.generate_desired_servers(resources, project_tag)
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
     def create_servers(self, servers, userdata):
         for s in servers:
             userdata_file = file(userdata)
-            create_server(userdata_file, key_name, **s)
+            self.create_server(userdata_file, key_name, **s)
 
     images={}
     flavors={}
@@ -108,7 +108,7 @@ class ApplyResources(object):
 
     def delete_servers(self, project_tag):
         nova_client = self.get_nova_client()
-        servers = get_existing_servers(project_tag=project_tag, attr_name='id')
+        servers = self.get_existing_servers(project_tag=project_tag, attr_name='id')
         for uuid in servers:
             print "Deleting uuid: %s"%(uuid)
             nova_client.servers.delete(uuid)
@@ -191,6 +191,7 @@ if __name__ == '__main__':
             argparser.error("Must set project tag when action is delete")
         ApplyResources().delete_servers(project_tag=args.project_tag)
     elif args.action == 'list':
-        resources = read_resources(args.resource_file_path)
-        desired_servers = ApplyResources().generate_desired_servers(resources, args.project_tag)
+        apply_resources = ApplyResources()
+        resources = apply_resources.read_resources(args.resource_file_path)
+        desired_servers = apply_resources.generate_desired_servers(resources, args.project_tag)
         print '\n'.join([s['name'] for s in desired_servers])
