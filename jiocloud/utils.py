@@ -33,7 +33,7 @@ def is_rfc1918(ip_string):
 def get_ip_of_node(nova_client, name):
     ip = None
     for server in nova_client.servers.list():
-        if server.name.split('_')[-1] == name:
+        if server.name == name:
             for network in server.networks.values():
                 for ip in network:
                     if not is_rfc1918(ip):
