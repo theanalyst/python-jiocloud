@@ -52,6 +52,15 @@ class DeploymentOrchestrator(object):
         return filter(lambda x: x != 'running_version',
                       [x.key.split('/')[-1] for x in res.children])
 
+    def verify_hosts(self, version, hosts):
+        version_dir = '/running_version/%s' % (version,)
+        res = self.etcd.read(version_dir)
+        if len(list(res.children)) == 1:
+            if list(res.children)[0].key == version_dir:
+                return []
+        hosts_at_version = set([x.key.split('/')[-1] for x in res.children])
+        return set(hosts) == hosts_at_version
+
     def check_single_version(self, version, verbose=False):
         desired_version_seen = False
         running_versions = self.running_versions()
@@ -107,7 +116,11 @@ if __name__ == '__main__':
                                         help="This system's hostname")
     update_own_info_parser.add_argument('--version', type=str,
                                         help="Override version to report into etcd")
+
     running_versions_parser = subparsers.add_parser('running_versions', help="List currently running versions")
+
+    verify_hosts_parser = subparsers.add_parser('verify_hosts', help="Verify that list of hosts are all available")
+    verify_hosts_parser.add_argument('version', help="Version to look for")
 
     new_discovery_token_parser = subparsers.add_parser('new_discovery_token', help="Get new discovery token")
     new_discovery_token_parser.add_argument('--endpoint', default='https://discovery.etcd.io/', help='Discovery token endpoint')
@@ -140,6 +153,10 @@ if __name__ == '__main__':
         print '\n'.join(do.running_versions())
     elif args.subcmd == 'new_discovery_token':
         print do.new_discovery_token(args.endpoint)
+    elif args.subcmd == 'verify_hosts':
+        buffer = sys.stdin.read().strip()
+        hosts = buffer.split('\n')
+        sys.exit(not do.verify_hosts(args.version, hosts))
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         if pending_update:
