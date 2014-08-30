@@ -24,6 +24,8 @@ def get_nova_creds_from_env():
 class ApplyResources(object):
     def __init__(self):
         self.nova_client = None
+        self._images = {}
+        self._flavors = {}
 
     def read_resources(self, path):
         fp = file(path)
@@ -73,8 +75,6 @@ class ApplyResources(object):
             userdata_file = file(userdata)
             self.create_server(userdata_file, key_name, **s)
 
-    images={}
-    flavors={}
     def create_server(self,
                       userdata_file,
                       key_name,
@@ -85,13 +85,13 @@ class ApplyResources(object):
                       **keys):
         print "Creating server %s"%(name)
         nova_client = self.get_nova_client()
-        images[image] = images.get(image, nova_client.images.get(image))
-        flavors[flavor] = flavors.get(flavor, nova_client.flavors.get(flavor))
+        self._images[image] = self._images.get(image, nova_client.images.get(image))
+        self._flavors[flavor] = self._flavors.get(flavor, nova_client.flavors.get(flavor))
         net_list=[{'net-id': n} for n in networks]
         instance = nova_client.servers.create(
           name=name,
-          image=images[image],
-          flavor=flavors[flavor],
+          image=self._images[image],
+          flavor=self._flavors[flavor],
           nics=net_list,
           userdata=userdata_file,
           key_name=key_name,
