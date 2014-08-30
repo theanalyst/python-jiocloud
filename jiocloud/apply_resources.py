@@ -3,6 +3,7 @@ import argparse
 import keystoneclient.v2_0.client as ksclient
 import mock
 import os
+import StringIO
 import time
 import unittest
 import yaml
@@ -68,7 +69,7 @@ class ApplyResources(object):
         desired_servers = self.generate_desired_servers(resources, project_tag)
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
-    def create_servers(self, servers, userdata):
+    def create_servers(self, servers, userdata, key_name=None):
         for s in servers:
             userdata_file = file(userdata)
             self.create_server(userdata_file, key_name, **s)
@@ -183,6 +184,19 @@ class TestApplyResources(unittest.TestCase):
             self.assertEquals(apply_resources.servers_to_create('fake_path'),
                               [{'name': 'foo1', 'number': 1},
                                {'name': 'bar1', 'number': 2}])
+
+    def test_create_servers(self):
+        apply_resources = ApplyResources()
+        with mock.patch('__builtin__.file') as file_mock:
+            with mock.patch.object(apply_resources, 'create_server') as create_server:
+                file_mock.side_effect = lambda f: StringIO.StringIO('test user data')
+                apply_resources.create_servers([{'name': 'foo1', 'networks':  ['someid']},
+                                                {'name': 'foo2', 'networks':  ['someid']}], 'somefile', 'somekey')
+                create_server.assert_any_call(mock.ANY, 'somekey', name='foo1', networks=['someid'])
+                create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
+                for call in create_server.call_args_list:
+                    self.assertEquals(call[0][0].read(), 'test user data')
+
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
