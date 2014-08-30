@@ -130,9 +130,10 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
     if args.action == 'apply':
-        servers = ApplyResources().servers_to_create(args.resource_file_path,
+        apply_resources = ApplyResources()
+        servers = apply_resources.servers_to_create(args.resource_file_path,
                                                      project_tag=args.project_tag)
-        create_servers(servers, args.userdata, key_name=args.key_name)
+        apply_resources.create_servers(servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
         if not args.project_tag:
             argparser.error("Must set project tag when action is delete")
