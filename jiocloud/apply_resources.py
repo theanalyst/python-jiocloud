@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import argparse
 import keystoneclient.v2_0.client as ksclient
+import mock
 import os
 import time
+import unittest
 import yaml
 from novaclient import client as novaclient
 
@@ -110,6 +112,32 @@ class ApplyResources(object):
         for uuid in servers:
             print "Deleting uuid: %s"%(uuid)
             nova_client.servers.delete(uuid)
+
+class TestApplyResources(unittest.TestCase):
+    def test_get_existing_servers(self):
+        apply_resources = ApplyResources()
+        with mock.patch.object(apply_resources, 'get_nova_client') as get_nova_client:
+            server_data = [('foo1_abc123', '93138146-2275-4e18-b41e-3957aa13e73a'),
+                           ('foo2_abc124', '26af0276-83e1-4b68-870e-ff3250be8e8f'),
+                           ('foo4_bc124', '677388b7-b5ac-418b-b671-6b930dc8003a'),
+                           ('bar2', '381877b2-12c5-4831-95ed-1d7518bb7e8c'),
+                           ('baz', '59e5dd8d-2063-4943-98de-df206e462849')]
+            def fake_server(name, uuid):
+                s = mock.Mock()
+                s.configure_mock(name=name, id=uuid)
+                return s
+            server_list = [fake_server(*s) for s in server_data]
+            nova_client = get_nova_client.return_value
+            nova_client.servers.list.return_value = server_list
+            self.assertEquals(apply_resources.get_existing_servers(), [s[0] for s in server_data])
+            self.assertEquals(apply_resources.get_existing_servers(project_tag='abc123'),
+                              ['foo1_abc123'])
+            self.assertEquals(apply_resources.get_existing_servers(project_tag='abc124'),
+                              ['foo2_abc124'])
+            self.assertEquals(apply_resources.get_existing_servers(project_tag='bc124'),
+                              ['foo4_bc124'])
+            self.assertEquals(apply_resources.get_existing_servers(project_tag='bc124', attr_name='id'),
+                              ['677388b7-b5ac-418b-b671-6b930dc8003a'])
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
