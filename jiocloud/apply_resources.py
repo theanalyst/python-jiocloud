@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import argparse
-import keystoneclient.v2_0.client as ksclient
 import mock
 import os
 import StringIO
@@ -196,7 +195,6 @@ class TestApplyResources(unittest.TestCase):
                 create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
                 for call in create_server.call_args_list:
                     self.assertEquals(call[0][0].read(), 'test user data')
-
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
