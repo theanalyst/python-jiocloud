@@ -118,15 +118,24 @@ if __name__ == '__main__':
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project_tag', help='Id of project to delete')
 
+    list_parser  = subparsers.add_parser('list', help='List servers described in resource file')
+    list_parser.add_argument('resource_file_path', help='Path to resource file')
+    list_parser.add_argument('--project_tag', help='Project tag')
+
     args = argparser.parse_args()
-    nova_client = get_nova_client()
     if args.action == 'apply':
+        nova_client = get_nova_client()
         servers = servers_to_create(get_nova_client(),
                                     args.resource_file_path,
                                     project_tag=args.project_tag,
                                     )
         create_servers(nova_client, servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
+        nova_client = get_nova_client()
         if not args.project_tag:
             argparser.error("Must set project tag when action is delete")
         delete_servers(nova_client, project_tag=args.project_tag)
+    elif args.action == 'list':
+        resources = read_resources(args.resource_file_path)
+        desired_servers = generate_desired_servers(resources, args.project_tag)
+        print '\n'.join([s['name'] for s in desired_servers])
