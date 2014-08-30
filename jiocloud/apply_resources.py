@@ -139,6 +139,30 @@ class TestApplyResources(unittest.TestCase):
             self.assertEquals(apply_resources.get_existing_servers(project_tag='bc124', attr_name='id'),
                               ['677388b7-b5ac-418b-b671-6b930dc8003a'])
 
+    def test_generate_desired_servers(self):
+        apply_resources = ApplyResources()
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 5 }}, project_tag='foo'),
+                          [{'name': 'foo1_foo', 'number': 5},
+                           {'name': 'foo2_foo', 'number': 5},
+                           {'name': 'foo3_foo', 'number': 5},
+                           {'name': 'foo4_foo', 'number': 5},
+                           {'name': 'foo5_foo', 'number': 5}
+                          ])
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 5 },
+                                                                    'bar': {'number': 2 }}, project_tag='foo'),
+                          [{'name': 'foo1_foo', 'number': 5},
+                           {'name': 'foo2_foo', 'number': 5},
+                           {'name': 'foo3_foo', 'number': 5},
+                           {'name': 'foo4_foo', 'number': 5},
+                           {'name': 'foo5_foo', 'number': 5},
+                           {'name': 'bar1_foo', 'number': 2},
+                           {'name': 'bar2_foo', 'number': 2},
+                          ])
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0 },
+                                                                    'bar': {'number': 2 }}),
+                          [{'name': 'bar1', 'number': 2},
+                           {'name': 'bar2', 'number': 2},
+                          ])
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     subparsers = argparser.add_subparsers(dest='action', help='Action to perform')
