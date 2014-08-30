@@ -29,81 +29,83 @@ def read_resources(path):
     fp = file(path)
     return yaml.load(fp)['resources']
 
-def get_existing_servers(nova_client, project_tag=None, attr_name='name'):
-    """
-    This method accepts an option project tag
-    """
-    # NOTE we should check for servers only in a certain state
-    servers = nova_client.servers.list()
-    if project_tag:
-        servers = [elem for elem in servers if elem.name.endswith('_' + project_tag) ]
-    return [getattr(s, attr_name) for s in servers]
+class ApplyResources(object):
+    def get_existing_servers(self, nova_client, project_tag=None, attr_name='name'):
+        """
+        This method accepts an option project tag
+        """
+        # NOTE we should check for servers only in a certain state
+        servers = nova_client.servers.list()
+        if project_tag:
+            servers = [elem for elem in servers if elem.name.endswith('_' + project_tag) ]
+        return [getattr(s, attr_name) for s in servers]
 
 
-def generate_desired_servers(resources, project_tag=None):
-    """
-    Convert from a hash of servers resources to the
-    hash of all server names that should be created
-    """
-    suffix = (project_tag and ('_' + project_tag)) or ''
+    def generate_desired_servers(self, resources, project_tag=None):
+        """
+        Convert from a hash of servers resources to the
+        hash of all server names that should be created
+        """
+        suffix = (project_tag and ('_' + project_tag)) or ''
 
-    servers_to_create = []
-    for k,v in resources.iteritems():
-        for i in range(int(v['number'])):
-            # NOTE ideally, this would not contain the caridinatlity
-            # b/c it is not needed by this hash
-            server = {'name': "%s%d%s"%(k, i+1, suffix)}
-            servers_to_create.append(dict(server.items() + v.items()))
-    return servers_to_create
+        servers_to_create = []
+        for k,v in resources.iteritems():
+            for i in range(int(v['number'])):
+                # NOTE ideally, this would not contain the caridinatlity
+                # b/c it is not needed by this hash
+                server = {'name': "%s%d%s"%(k, i+1, suffix)}
+                servers_to_create.append(dict(server.items() + v.items()))
+        return servers_to_create
 
-def servers_to_create(nova_client, resource_file, project_tag=None):
-    resources = read_resources(resource_file)
-    existing_servers = get_existing_servers(nova_client, project_tag=project_tag)
-    desired_servers = generate_desired_servers(resources, project_tag)
-    return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
+    def servers_to_create(self, nova_client, resource_file, project_tag=None):
+        resources = read_resources(resource_file)
+        existing_servers = get_existing_servers(nova_client, project_tag=project_tag)
+        desired_servers = generate_desired_servers(resources, project_tag)
+        return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
-def create_servers(nova_client, servers, userdata):
-    for s in servers:
-        userdata_file = file(userdata)
-        create_server(nova_client, userdata_file, key_name, **s)
+    def create_servers(self, nova_client, servers, userdata):
+        for s in servers:
+            userdata_file = file(userdata)
+            create_server(nova_client, userdata_file, key_name, **s)
 
-images={}
-flavors={}
-def create_server(nova_client,
-                  userdata_file,
-                  key_name,
-                  name,
-                  flavor,
-                  image,
-                  networks,
-                  **keys):
-    print "Creating server %s"%(name)
-    images[image] = images.get(image, nova_client.images.get(image))
-    flavors[flavor] = flavors.get(flavor, nova_client.flavors.get(flavor))
-    net_list=[{'net-id': n} for n in networks]
-    instance = nova_client.servers.create(
-      name=name,
-      image=images[image],
-      flavor=flavors[flavor],
-      nics=net_list,
-      userdata=userdata_file,
-      key_name=key_name,
-    )
+    images={}
+    flavors={}
+    def create_server(self,
+                      nova_client,
+                      userdata_file,
+                      key_name,
+                      name,
+                      flavor,
+                      image,
+                      networks,
+                      **keys):
+        print "Creating server %s"%(name)
+        images[image] = images.get(image, nova_client.images.get(image))
+        flavors[flavor] = flavors.get(flavor, nova_client.flavors.get(flavor))
+        net_list=[{'net-id': n} for n in networks]
+        instance = nova_client.servers.create(
+          name=name,
+          image=images[image],
+          flavor=flavors[flavor],
+          nics=net_list,
+          userdata=userdata_file,
+          key_name=key_name,
+        )
 
-    # Poll at 5 second intervals, until the status is no longer 'BUILD'
-    status = instance.status
-    while status == 'BUILD':
-        time.sleep(5)
-        # Retrieve the instance again so the status field updates
-        instance = nova_client.servers.get(instance.id)
+        # Poll at 5 second intervals, until the status is no longer 'BUILD'
         status = instance.status
-        print "status: %s" % status
+        while status == 'BUILD':
+            time.sleep(5)
+            # Retrieve the instance again so the status field updates
+            instance = nova_client.servers.get(instance.id)
+            status = instance.status
+            print "status: %s" % status
 
-def delete_servers(nova_client, project_tag):
-    servers = get_existing_servers(nova_client, project_tag=project_tag, attr_name='id')
-    for uuid in servers:
-        print "Deleting uuid: %s"%(uuid)
-        nova_client.servers.delete(uuid)
+    def delete_servers(self, nova_client, project_tag):
+        servers = get_existing_servers(nova_client, project_tag=project_tag, attr_name='id')
+        for uuid in servers:
+            print "Deleting uuid: %s"%(uuid)
+            nova_client.servers.delete(uuid)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
@@ -125,17 +127,16 @@ if __name__ == '__main__':
     args = argparser.parse_args()
     if args.action == 'apply':
         nova_client = get_nova_client()
-        servers = servers_to_create(get_nova_client(),
-                                    args.resource_file_path,
-                                    project_tag=args.project_tag,
-                                    )
+        servers = ApplyResources().servers_to_create(get_nova_client(),
+                                                     args.resource_file_path,
+                                                     project_tag=args.project_tag)
         create_servers(nova_client, servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
         nova_client = get_nova_client()
         if not args.project_tag:
             argparser.error("Must set project tag when action is delete")
-        delete_servers(nova_client, project_tag=args.project_tag)
+        ApplyResources().delete_servers(nova_client, project_tag=args.project_tag)
     elif args.action == 'list':
         resources = read_resources(args.resource_file_path)
-        desired_servers = generate_desired_servers(resources, args.project_tag)
+        desired_servers = ApplyResources().generate_desired_servers(resources, args.project_tag)
         print '\n'.join([s['name'] for s in desired_servers])
