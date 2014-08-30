@@ -19,9 +19,6 @@ def get_nova_creds_from_env():
     d['region_name'] = os.environ.get('OS_REGION_NAME')
     return d
 
-def get_resource_file_path(path, env):
-    return os.path.join(path, env + ".yaml")
-
 def read_resources(path):
     fp = file(path)
     return yaml.load(fp)['resources']
