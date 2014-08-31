@@ -38,14 +38,14 @@ class DeploymentOrchestrator(object):
         local_version = self.local_version()
         try:
             if (self.current_version() == local_version):
-                return UP_TO_DATE
+                return self.UP_TO_DATE
             else:
-                return UPDATE_AVAILABLE
+                return self.UPDATE_AVAILABLE
         except:
             if local_version:
-                return NO_CLUE
+                return self.NO_CLUE
             else:
-                return NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
+                return self.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
 
     def current_version(self):
         return self.etcd.read('/current_version').value.strip()
