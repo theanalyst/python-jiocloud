@@ -38,7 +38,7 @@ class DeploymentOrchestrator(object):
     def ping(self):
         try:
             return bool(self.etcd.machines)
-        except etcd.EtcdError, HTTPError:
+        except etcd.EtcdError, etcd.EtcdException, HTTPError:
             return False
 
     def update_own_info(self, hostname, interval=60, version=None):
