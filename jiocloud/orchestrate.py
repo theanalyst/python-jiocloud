@@ -24,8 +24,7 @@ from urllib3.exceptions import HTTPError
 
 class DeploymentOrchestrator(object):
     def __init__(self, host='127.0.0.1', port=4001):
-        self.etcd = etcd.Client(host=host, port=port,
-                                allow_redirect=False, allow_reconnect=False)
+        self.etcd = etcd.Client(host=host, port=port)
 
     def trigger_update(self, new_version):
         self.etcd.write('/current_version', new_version)
