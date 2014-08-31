@@ -23,6 +23,11 @@ import urllib3
 from urllib3.exceptions import HTTPError
 
 class DeploymentOrchestrator(object):
+    UPDATE_AVAILABLE = 0
+    UP_TO_DATE = 1
+    NO_CLUE = 2
+    NO_CLUE_BUT_WERE_JUST_GETTING_STARTED = 3
+
     def __init__(self, host='127.0.0.1', port=4001):
         self.etcd = etcd.Client(host=host, port=port)
 
@@ -30,7 +35,17 @@ class DeploymentOrchestrator(object):
         self.etcd.write('/current_version', new_version)
 
     def pending_update(self):
-        return not (self.current_version() == self.local_version())
+        local_version = self.local_version()
+        try:
+            if (self.current_version() == local_version):
+                return UP_TO_DATE
+            else:
+                return UPDATE_AVAILABLE
+        except:
+            if local_version:
+                return NO_CLUE
+            else:
+                return NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
 
     def current_version(self):
         return self.etcd.read('/current_version').value.strip()
@@ -159,8 +174,10 @@ if __name__ == '__main__':
         sys.exit(not do.verify_hosts(args.version, hosts))
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
-        if pending_update:
-            print 'Yes, there is an update pending'
-        else:
-            print 'No updates pending'
-        sys.exit(not pending_update)
+        msg = {do.UPDATE_AVAILABLE: "Yes, there is an update pending",
+               do.UP_TO_DATE: "No updates pending",
+               do.NO_CLUE: "Could not get current_version",
+               do.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED: "Could not get current_version, but there's also no local version set"
+              }[pending_update]
+        print msg
+        sys.exit(pending_update)
