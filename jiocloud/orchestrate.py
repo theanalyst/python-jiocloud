@@ -86,6 +86,8 @@ class DeploymentOrchestrator(object):
 
     def update_own_info(self, hostname, interval=60, version=None):
         version = version or self.local_version()
+        if not version:
+            return
         version_dir = '/running_version/%s' % version
         self.etcd.write('%s/%s' % (version_dir, hostname), str(time.time()))
         self.etcd.write(version_dir, None, dir=True, prevExist=True, ttl=(interval*2+10))
