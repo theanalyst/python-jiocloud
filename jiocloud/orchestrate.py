@@ -52,7 +52,7 @@ class DeploymentOrchestrator(object):
                                      port=443, protocol='https',
                                      allow_redirect=False, allow_reconnect=False)
                 urls = [x.value for x in dc.read('/').children]
-                conn_tuples = [tuple(urlparse.urlparse(url).netloc.split(':')[0], self.port) for url in urls]
+                conn_tuples = [(urlparse.urlparse(url).netloc.split(':')[0], self.port) for url in urls]
             else:
                 conn_tuples = [(self.host, self.port)]
 
