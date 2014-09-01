@@ -20,7 +20,17 @@ import socket
 import sys
 import time
 import urllib3
+import urlparse
 from urllib3.exceptions import HTTPError
+
+class DiscoveryClient(etcd.Client):
+    def __init__(self, discovery_token, *args, **kwargs):
+        self.discovery_token = discovery_token
+        super(DiscoveryClient, self).__init__(*args, **kwargs)
+
+    @property
+    def key_endpoint(self):
+        return '/%s' % (self.discovery_token,)
 
 class DeploymentOrchestrator(object):
     UPDATE_AVAILABLE = 0
@@ -28,8 +38,26 @@ class DeploymentOrchestrator(object):
     NO_CLUE = 2
     NO_CLUE_BUT_WERE_JUST_GETTING_STARTED = 3
 
-    def __init__(self, host='127.0.0.1', port=4001):
-        self.etcd = etcd.Client(host=host, port=port)
+    def __init__(self, host='127.0.0.1', port=4001, discovery_token=None):
+        self.host = host
+        self.port = port
+        self.discovery_token = discovery_token
+        self._etcd = None
+
+    @property
+    def etcd(self):
+        if not self._etcd:
+            if self.discovery_token:
+                dc = DiscoveryClient(self.discovery_token, host='discovery.etcd.io',
+                                     port=443, protocol='https',
+                                     allow_redirect=False, allow_reconnect=False)
+                urls = [x.value for x in dc.read('/').children]
+                conn_tuples = [tuple(urlparse.urlparse(url).netloc.split(':')[0], self.port) for url in urls]
+            else:
+                conn_tuples = [(self.host, self.port)]
+
+            self._etcd = etcd.Client(host=tuple(conn_tuples))
+        return self._etcd
 
     def trigger_update(self, new_version):
         self.etcd.write('/current_version', new_version)
@@ -111,6 +139,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility for orchestrating updates')
     parser.add_argument('--host', type=str, default='127.0.0.1', help="etcd host")
     parser.add_argument('--port', type=int, default=4001, help="etcd port")
+    parser.add_argument('--discovery_token', type=str, default=None, help="etcd discovery token")
     subparsers = parser.add_subparsers(dest='subcmd')
 
     trigger_parser = subparsers.add_parser('trigger_update', help='Trigger an update')
@@ -145,7 +174,7 @@ if __name__ == '__main__':
     check_single_version_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
     args = parser.parse_args()
 
-    do = DeploymentOrchestrator(args.host, args.port)
+    do = DeploymentOrchestrator(args.host, args.port, args.discovery_token)
     if args.subcmd == 'trigger_update':
         do.trigger_update(args.version)
     elif args.subcmd == 'current_version':
