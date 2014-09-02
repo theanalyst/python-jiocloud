@@ -21,6 +21,7 @@ import sys
 import time
 import urllib3
 import urlparse
+from etcd.exceptions import EtcdException
 from urllib3.exceptions import HTTPError
 
 class DiscoveryClient(etcd.Client):
@@ -81,7 +82,7 @@ class DeploymentOrchestrator(object):
     def ping(self):
         try:
             return bool(self.etcd.machines)
-        except (etcd.EtcdException, HTTPError) as e:
+        except (EtcdException, HTTPError) as e:
             return False
 
     def update_own_info(self, hostname, interval=60, version=None):
