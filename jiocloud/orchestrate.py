@@ -99,7 +99,10 @@ class DeploymentOrchestrator(object):
 
     def verify_hosts(self, version, hosts):
         version_dir = '/running_version/%s' % (version,)
-        res = self.etcd.read(version_dir)
+        try:
+            res = self.etcd.read(version_dir)
+        except KeyError:
+            return []
         if len(list(res.children)) == 1:
             if list(res.children)[0].key == version_dir:
                 return []
