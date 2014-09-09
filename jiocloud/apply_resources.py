@@ -6,6 +6,7 @@ import StringIO
 import time
 import unittest
 import yaml
+from contextlib import nested
 from novaclient import client as novaclient
 
 """
@@ -71,9 +72,22 @@ class ApplyResources(object):
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
     def create_servers(self, servers, userdata, key_name=None):
+        ids = set()
         for s in servers:
             userdata_file = file(userdata)
-            self.create_server(userdata_file, key_name, **s)
+            ids.add(self.create_server(userdata_file, key_name, **s))
+
+        nova_client = self.get_nova_client()
+
+        done = set()
+        while ids:
+            time.sleep(5)
+            for id in ids:
+                instance = nova_client.servers.get(id)
+                print "%s: %s" % (id, instance.status)
+                if instance.status != 'BUILD':
+                    done.add(id)
+            ids = ids.difference(done)
 
     def create_server(self,
                       userdata_file,
@@ -97,14 +111,7 @@ class ApplyResources(object):
           key_name=key_name,
         )
 
-        # Poll at 5 second intervals, until the status is no longer 'BUILD'
-        status = instance.status
-        while status == 'BUILD':
-            time.sleep(5)
-            # Retrieve the instance again so the status field updates
-            instance = nova_client.servers.get(instance.id)
-            status = instance.status
-            print "status: %s" % status
+        return instance.id
 
     def delete_servers(self, project_tag):
         nova_client = self.get_nova_client()
@@ -119,6 +126,14 @@ class TestApplyResources(unittest.TestCase):
                    ('foo4_bc124', '677388b7-b5ac-418b-b671-6b930dc8003a'),
                    ('bar2', '381877b2-12c5-4831-95ed-1d7518bb7e8c'),
                    ('baz', '59e5dd8d-2063-4943-98de-df206e462849')]
+
+    def setUp(self):
+        super(TestApplyResources, self).setUp()
+        os.environ['OS_USERNAME'] = 'os_username'
+        os.environ['OS_PASSWORD'] = 'os_pasword'
+        os.environ['OS_AUTH_URL'] = 'http://example.com/'
+        os.environ['OS_TENANT_NAME'] = 'tenant_name'
+        os.environ['OS_REGION_NAME'] = 'region_name'
 
     def fake_server_data(self, nova_client):
         def fake_server(name, uuid):
@@ -186,15 +201,40 @@ class TestApplyResources(unittest.TestCase):
 
     def test_create_servers(self):
         apply_resources = ApplyResources()
-        with mock.patch('__builtin__.file') as file_mock:
-            with mock.patch.object(apply_resources, 'create_server') as create_server:
-                file_mock.side_effect = lambda f: StringIO.StringIO('test user data')
-                apply_resources.create_servers([{'name': 'foo1', 'networks':  ['someid']},
-                                                {'name': 'foo2', 'networks':  ['someid']}], 'somefile', 'somekey')
-                create_server.assert_any_call(mock.ANY, 'somekey', name='foo1', networks=['someid'])
-                create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
-                for call in create_server.call_args_list:
-                    self.assertEquals(call[0][0].read(), 'test user data')
+        with nested(
+               mock.patch('__builtin__.file'),
+               mock.patch('time.sleep'),
+               mock.patch.object(apply_resources, 'create_server'),
+               mock.patch.object(apply_resources, 'get_nova_client')
+            ) as (file_mock, sleep, create_server, get_nova_client):
+            ids = [10,11]
+            status = {10: ['ACTIVE', 'BUILD', 'BUILD'], 11: ['ACTIVE', 'BUILD']}
+
+            def fake_create_server(*args, **kwargs):
+                return ids.pop()
+
+            create_server.side_effect = fake_create_server
+
+            def server_get(id):
+                mm = mock.MagicMock()
+                mm.status = status[id].pop()
+                return mm
+
+            get_nova_client.return_value.servers.get.side_effect = server_get
+
+            file_mock.side_effect = lambda f: StringIO.StringIO('test user data')
+
+            apply_resources.create_servers([{'name': 'foo1', 'networks':  ['someid']},
+                                            {'name': 'foo2', 'networks':  ['someid']}], 'somefile', 'somekey')
+
+            create_server.assert_any_call(mock.ANY, 'somekey', name='foo1', networks=['someid'])
+            create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
+
+            for call in create_server.call_args_list:
+                self.assertEquals(call[0][0].read(), 'test user data')
+
+            for s in status.values():
+                self.assertEquals(s, [], 'create_servers stopped polling before server left BUILD state')
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
