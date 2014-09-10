@@ -187,7 +187,7 @@ class OrchestrateTests(unittest.TestCase):
 
 
 
-if __name__ == '__main__':
+def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Utility for '
                                                  'orchestrating updates')
     parser.add_argument('--host', type=str,
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     check_single_version_parser = subparsers.add_parser('check_single_version', help="Check if the given version is the only one currently running")
     check_single_version_parser.add_argument('version', help='The version to check for')
     check_single_version_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     do = DeploymentOrchestrator(args.host, args.port, args.discovery_token)
     if args.subcmd == 'trigger_update':
@@ -246,10 +246,10 @@ if __name__ == '__main__':
         did_it_work = do.ping()
         if did_it_work:
             print 'Connection succesful'
-            sys.exit(0)
+            return 0
         else:
             print 'Connection failed'
-            sys.exit(1)
+            return 1
     elif args.subcmd == 'local_version':
         print do.local_version(args.version)
     elif args.subcmd == 'running_versions':
@@ -259,7 +259,7 @@ if __name__ == '__main__':
     elif args.subcmd == 'verify_hosts':
         buffer = sys.stdin.read().strip()
         hosts = buffer.split('\n')
-        sys.exit(not do.verify_hosts(args.version, hosts))
+        return not do.verify_hosts(args.version, hosts)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         msg = {do.UPDATE_AVAILABLE: "Yes, there is an update pending",
@@ -268,4 +268,7 @@ if __name__ == '__main__':
                do.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED: "Could not get current_version, but there's also no local version set"
               }[pending_update]
         print msg
-        sys.exit(pending_update)
+        return pending_update
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
