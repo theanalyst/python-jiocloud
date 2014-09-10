@@ -35,6 +35,7 @@ class DiscoveryClient(etcd.Client):
     def key_endpoint(self):
         return '/%s' % (self.discovery_token,)
 
+
 class DeploymentOrchestrator(object):
     UPDATE_AVAILABLE = 0
     UP_TO_DATE = 1
@@ -51,11 +52,14 @@ class DeploymentOrchestrator(object):
     def etcd(self):
         if not self._etcd:
             if self.discovery_token:
-                dc = DiscoveryClient(self.discovery_token, host='discovery.etcd.io',
+                dc = DiscoveryClient(self.discovery_token,
+                                     host='discovery.etcd.io',
                                      port=443, protocol='https',
-                                     allow_redirect=False, allow_reconnect=False)
+                                     allow_redirect=False,
+                                     allow_reconnect=False)
                 urls = [x.value for x in dc.read('/').children]
-                conn_tuples = [(urlparse.urlparse(url).netloc.split(':')[0], self.port) for url in urls]
+                conn_tuples = [(urlparse.urlparse(url).netloc.split(':')[0],
+                                self.port) for url in urls]
             else:
                 conn_tuples = [(self.host, self.port)]
 
@@ -84,7 +88,7 @@ class DeploymentOrchestrator(object):
     def ping(self):
         try:
             return bool(self.etcd.machines)
-        except (etcd.EtcdError, etcd.EtcdException, HTTPError) as e:
+        except (etcd.EtcdError, etcd.EtcdException, HTTPError):
             return False
 
     def update_own_info(self, hostname, interval=60, version=None):
@@ -93,7 +97,8 @@ class DeploymentOrchestrator(object):
             return
         version_dir = '/running_version/%s' % version
         self.etcd.write('%s/%s' % (version_dir, hostname), str(time.time()))
-        self.etcd.write(version_dir, None, dir=True, prevExist=True, ttl=(interval*2+10))
+        self.etcd.write(version_dir, None, dir=True,
+                        prevExist=True, ttl=(interval*2+10))
 
     def running_versions(self):
         res = self.etcd.read('/running_version')
@@ -113,9 +118,8 @@ class DeploymentOrchestrator(object):
         return set(hosts) == hosts_at_version
 
     def check_single_version(self, version, verbose=False):
-        desired_version_seen = False
         running_versions = self.running_versions()
-        unwanted_versions = filter(lambda x:x != version,
+        unwanted_versions = filter(lambda x: x != version,
                                    running_versions)
         wanted_version_found = version in running_versions
         if verbose:
@@ -184,22 +188,29 @@ class OrchestrateTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Utility for orchestrating updates')
-    parser.add_argument('--host', type=str, default='127.0.0.1', help="etcd host")
+    parser = argparse.ArgumentParser(description='Utility for '
+                                                 'orchestrating updates')
+    parser.add_argument('--host', type=str,
+                        default='127.0.0.1', help="etcd host")
     parser.add_argument('--port', type=int, default=4001, help="etcd port")
-    parser.add_argument('--discovery_token', type=str, default=None, help="etcd discovery token")
+    parser.add_argument('--discovery_token', type=str,
+                        default=None, help="etcd discovery token")
     subparsers = parser.add_subparsers(dest='subcmd')
 
-    trigger_parser = subparsers.add_parser('trigger_update', help='Trigger an update')
+    trigger_parser = subparsers.add_parser('trigger_update',
+                                           help='Trigger an update')
     trigger_parser.add_argument('version', type=str, help='Version to deploy')
 
-    current_version_parser = subparsers.add_parser('current_version', help='Get available version')
+    current_version_parser = subparsers.add_parser('current_version',
+                                                   help='Get available version')
 
     ping_parser = subparsers.add_parser('ping', help='Ping etcd')
 
-    pending_update = subparsers.add_parser('pending_update', help='Check for pending update')
+    pending_update = subparsers.add_parser('pending_update',
+                                           help='Check for pending update')
 
-    local_version_parser = subparsers.add_parser('local_version', help='Get or set local version')
+    local_version_parser = subparsers.add_parser('local_version',
+                                                 help='Get or set local version')
     local_version_parser.add_argument('version', nargs='?', help="If given, set this as the local version")
 
     update_own_info_parser = subparsers.add_parser('update_own_info', help="Update host's own info")
