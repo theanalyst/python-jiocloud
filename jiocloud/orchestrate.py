@@ -23,6 +23,7 @@ import time
 import unittest
 import urllib3
 import urlparse
+from contextlib import nested
 from urllib3.exceptions import HTTPError
 
 
@@ -101,11 +102,14 @@ class DeploymentOrchestrator(object):
                         prevExist=True, ttl=(interval*2+10))
 
     def running_versions(self):
-        res = self.etcd.read('/running_version')
+        try:
+            res = self.etcd.read('/running_version')
+        except KeyError:
+            return []
         return filter(lambda x: x != 'running_version',
                       [x.key.split('/')[-1] for x in res.children])
 
-    def verify_hosts(self, version, hosts):
+    def hosts_at_version(self, version):
         version_dir = '/running_version/%s' % (version,)
         try:
             res = self.etcd.read(version_dir)
@@ -114,8 +118,10 @@ class DeploymentOrchestrator(object):
         if len(list(res.children)) == 1:
             if list(res.children)[0].key == version_dir:
                 return []
-        hosts_at_version = set([x.key.split('/')[-1] for x in res.children])
-        return set(hosts) == hosts_at_version
+        return set([x.key.split('/')[-1] for x in res.children])
+
+    def verify_hosts(self, version, hosts):
+        return set(hosts).issubset(self.hosts_at_version(version))
 
     def check_single_version(self, version, verbose=False):
         running_versions = self.running_versions()
@@ -182,9 +188,200 @@ class OrchestrateTests(unittest.TestCase):
         open_mock = mock.mock_open()
         with mock.patch('__builtin__.open', open_mock):
             version = 'abc123'
-            self.do.local_version(version)
+            self.assertEquals(self.do.local_version(version), version)
             open_mock().write.assert_called_with(version)
 
+    def test_new_discovery_token(self):
+        with mock.patch('urllib3.PoolManager') as pm:
+            token = '21476128346123'
+            token_url = 'http://discovery.example.com/%s' % (token,)
+            pm.return_value.request.return_value.data = token_url
+
+            self.assertEquals(self.do.new_discovery_token('http://example.com/'), token)
+
+            pm.return_value.request.assert_called_with('GET', 'http://example.com/new')
+
+    def test_check_single_version(self):
+        with mock.patch.object(self.do, 'running_versions') as rv:
+            rv.return_value = ['123', '124']
+            self.assertFalse(self.do.check_single_version('123'))
+
+            rv.return_value = ['124']
+            self.assertFalse(self.do.check_single_version('123'))
+
+            rv.return_value = []
+            self.assertFalse(self.do.check_single_version('123'))
+
+            rv.return_value = ['123']
+            self.assertTrue(self.do.check_single_version('123'))
+
+    def test_verify_hosts(self):
+        with mock.patch.object(self.do, 'hosts_at_version') as hav:
+            hav.return_value = set(['cp1', 'ctrl1', 'st1'])
+            self.assertTrue(self.do.verify_hosts('', ['cp1', 'ctrl1', 'st1']))
+            self.assertTrue(self.do.verify_hosts('', ['cp1', 'ctrl1']))
+            self.assertFalse(self.do.verify_hosts('', ['cp2', 'ctrl1']))
+
+    def test_hosts_at_version_none(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            etcd.read.side_effect = KeyError
+
+            self.assertEquals(self.do.hosts_at_version('foo'), [])
+
+    class EtcdKey(object):
+        def __init__(self, key, value=None):
+            self.key = key
+            self.value = value
+
+    class EtcdResult(object):
+        def __init__(self, children):
+            self._children = children
+
+        @property
+        def children(self):
+            return iter(self._children)
+
+    def test_hosts_at_version_none_but_dir_exists(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            children = [self.EtcdKey('/running_version/foo')]
+            etcd.read.return_value = self.EtcdResult(children)
+
+            self.assertEquals(self.do.hosts_at_version('foo'), [])
+
+    def test_hosts_at_version(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            children = [self.EtcdKey('/running_version/foo/node1'),
+                        self.EtcdKey('/running_version/foo/node2')]
+            etcd.read.return_value = self.EtcdResult(children)
+
+            self.assertEquals(self.do.hosts_at_version('foo'), set(['node1',
+                                                                    'node2']))
+
+    def test_running_versions(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            children = [self.EtcdKey('/running_version/v10'),
+                        self.EtcdKey('/running_version/v17'),
+                        self.EtcdKey('/running_version/v18')]
+            etcd.read.return_value = self.EtcdResult(children)
+
+            self.assertEquals(self.do.running_versions(),
+                              ['v10', 'v17', 'v18'])
+
+    def test_running_versions_none(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            children = [self.EtcdKey('/running_version')]
+            etcd.read.return_value = self.EtcdResult(children)
+
+            self.assertEquals(self.do.running_versions(), [])
+
+    def test_running_versions_none2(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            etcd.read.side_effect = KeyError
+
+            self.assertEquals(self.do.running_versions(), [])
+
+    def test_update_own_info(self):
+        with nested(mock.patch.object(self.do, '_etcd'),
+                    mock.patch('time.time')) as (etcd, time):
+            time.return_value = 12345678
+
+            self.do.update_own_info(hostname='testhost',
+                                    interval=30,
+                                    version='v13')
+
+            expected_calls = [mock.call('/running_version/v13/testhost',
+                                        '12345678'),
+                              mock.call('/running_version/v13',
+                                        None, dir=True,
+                                        prevExist=True, ttl=70)]
+
+            self.assertEquals(etcd.write.call_args_list, expected_calls)
+
+    def test_update_own_info_no_version_noop(self):
+        with nested(mock.patch.object(self.do, '_etcd'),
+                    mock.patch.object(self.do, 'local_version')
+                    ) as (etcd, local_version):
+            local_version.return_value = None
+
+            self.do.update_own_info(hostname='testhost', interval=30)
+
+            self.assertEquals(etcd.write.call_args_list, [])
+
+    def test_update_own_info_defaults_to_local_version(self):
+        with nested(mock.patch.object(self.do, '_etcd'),
+                    mock.patch.object(self.do, 'local_version')
+                    ) as (etcd, local_version):
+            local_version.return_value = 'v674'
+
+            self.do.update_own_info(hostname='testhost', interval=30)
+
+            self.assertEquals(etcd.write.call_args[0][0],
+                              '/running_version/v674')
+
+    def test_ping_succesful(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            etcd.machines = ['foo1', 'foo2']
+            self.assertTrue(self.do.ping())
+
+    def test_ping_empty_cluster(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            etcd.machines = []
+            self.assertFalse(self.do.ping())
+
+    def test_ping_failed_connection(self):
+        with mock.patch.object(self.do, '_etcd') as _etcd:
+            machines = mock.PropertyMock()
+            machines.side_effect = etcd.EtcdException
+            type(_etcd).machines = machines
+
+            self.assertFalse(self.do.ping())
+
+    def test_current_version(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            etcd.read.return_value = self.EtcdKey('/current_version',
+                                                  '\nv673\n')
+            self.assertEquals(self.do.current_version(), 'v673')
+
+    def test_pending_update(self):
+        with nested(
+                mock.patch.object(self.do, 'local_version'),
+                mock.patch.object(self.do, 'current_version')
+                ) as (local_version, current_version):
+            local_version.return_value = 'v123'
+            current_version.return_value = 'v123'
+
+            self.assertEquals(self.do.pending_update(),
+                              self.do.UP_TO_DATE)
+
+            local_version.return_value = ''
+            current_version.return_value = 'v123'
+
+            self.assertEquals(self.do.pending_update(),
+                              self.do.UPDATE_AVAILABLE)
+
+            local_version.return_value = 'v1234'
+            current_version.return_value = 'v123'
+
+            self.assertEquals(self.do.pending_update(),
+                              self.do.UPDATE_AVAILABLE)
+
+            local_version.return_value = 'v123'
+            current_version.side_effect = KeyError
+
+            self.assertEquals(self.do.pending_update(),
+                              self.do.NO_CLUE)
+
+            local_version.return_value = ''
+            current_version.side_effect = KeyError
+
+            self.assertEquals(self.do.pending_update(),
+                              self.do.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED)
+
+    def test_trigger_update(self):
+        with mock.patch.object(self.do, '_etcd') as etcd:
+            self.do.trigger_update('v673')
+
+            etcd.write.assert_called_with('/current_version', 'v673')
 
 
 def main(argv=sys.argv[1:]):
@@ -266,7 +463,7 @@ def main(argv=sys.argv[1:]):
                do.UP_TO_DATE: "No updates pending",
                do.NO_CLUE: "Could not get current_version",
                do.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED: "Could not get current_version, but there's also no local version set"
-              }[pending_update]
+               }[pending_update]
         print msg
         return pending_update
 
