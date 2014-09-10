@@ -1,0 +1,5 @@
+python-etcd
+IPy
+mock
+python-novaclient
+PyYAML
