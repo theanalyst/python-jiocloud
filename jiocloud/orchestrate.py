@@ -16,12 +16,15 @@
 import argparse
 import etcd
 import errno
-import socket
+import mock
 import sys
+import socket
 import time
+import unittest
 import urllib3
 import urlparse
 from urllib3.exceptions import HTTPError
+
 
 class DiscoveryClient(etcd.Client):
     def __init__(self, discovery_token, *args, **kwargs):
@@ -139,6 +142,46 @@ class DeploymentOrchestrator(object):
             if e.errno == errno.ENOENT:
                 return ''
             raise
+
+
+class OrchestrateTests(unittest.TestCase):
+    def setUp(self, *args, **kwargs):
+        super(OrchestrateTests, self).setUp(*args, **kwargs)
+        self.do = DeploymentOrchestrator('somehost', 10000, 'disctoken')
+
+    def test_local_version(self):
+        open_mock = mock.mock_open(read_data='\n54\n')
+        with mock.patch('__builtin__.open', open_mock):
+            self.do.local_version()
+
+            self.assertEquals(self.do.local_version(), '54')
+
+    def test_local_version_enoent(self):
+        with mock.patch('__builtin__.open') as open_mock:
+            enoent = IOError()
+            enoent.errno = errno.ENOENT
+            open_mock.side_effect = enoent
+
+            self.do.local_version()
+
+            self.assertEquals(self.do.local_version(), '')
+
+    def test_local_version_other_ioerror(self):
+        with mock.patch('__builtin__.open') as open_mock:
+            eperm = IOError()
+            eperm.errno = errno.EPERM
+            open_mock.side_effect = eperm
+
+            self.assertRaises(IOError, self.do.local_version)
+
+    def test_local_version_set(self):
+        open_mock = mock.mock_open()
+        with mock.patch('__builtin__.open', open_mock):
+            version = 'abc123'
+            self.do.local_version(version)
+            open_mock().write.assert_called_with(version)
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Utility for orchestrating updates')
