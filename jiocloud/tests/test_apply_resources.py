@@ -107,8 +107,8 @@ class TestApplyResources(unittest.TestCase):
                mock.patch.object(apply_resources, 'create_server'),
                mock.patch.object(apply_resources, 'get_nova_client')
             ) as (file_mock, sleep, create_server, get_nova_client):
-            ids = [10,11]
-            status = {10: ['ACTIVE', 'BUILD', 'BUILD'], 11: ['ACTIVE', 'BUILD']}
+            ids = [10,11,12]
+            status = {10: ['ACTIVE', 'BUILD', 'BUILD'], 11: ['ACTIVE', 'BUILD'], 12: ['ACTIVE', 'BUILD']}
 
             def fake_create_server(*args, **kwargs):
                 return ids.pop()
@@ -125,10 +125,13 @@ class TestApplyResources(unittest.TestCase):
             file_mock.side_effect = lambda f: StringIO.StringIO('test user data')
 
             apply_resources.create_servers([{'name': 'foo1', 'networks':  ['someid']},
-                                            {'name': 'foo2', 'networks':  ['someid']}], 'somefile', 'somekey')
+                                            {'name': 'foo2', 'networks':  ['someid']},
+                                            {'name': 'foo3'}
+                                            ], 'somefile', 'somekey')
 
             create_server.assert_any_call(mock.ANY, 'somekey', name='foo1', networks=['someid'])
             create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
+            create_server.assert_any_call(mock.ANY, 'somekey', name='foo3')
 
             for call in create_server.call_args_list:
                 self.assertEquals(call[0][0].read(), 'test user data')
