@@ -91,6 +91,7 @@ class ApplyResources(object):
                       name,
                       flavor,
                       image,
+                      config_drive=False,
                       networks=None,
                       **keys):
         print "Creating server %s"%(name)
@@ -105,6 +106,7 @@ class ApplyResources(object):
           nics=net_list,
           userdata=userdata_file,
           key_name=key_name,
+          config_drive=config_drive,
         )
 
         return instance.id
