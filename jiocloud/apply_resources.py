@@ -91,13 +91,13 @@ class ApplyResources(object):
                       name,
                       flavor,
                       image,
-                      networks,
+                      networks=None,
                       **keys):
         print "Creating server %s"%(name)
         nova_client = self.get_nova_client()
         self._images[image] = self._images.get(image, nova_client.images.get(image))
         self._flavors[flavor] = self._flavors.get(flavor, nova_client.flavors.get(flavor))
-        net_list=[{'net-id': n} for n in networks]
+        net_list = networks and ([{'net-id': n} for n in networks])
         instance = nova_client.servers.create(
           name=name,
           image=self._images[image],
