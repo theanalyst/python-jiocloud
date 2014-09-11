@@ -21,14 +21,10 @@ def get_nova_client():
     return novaclient.Client("1.1", **get_nova_creds_from_env())
 
 def is_rfc1918(ip_string):
-    ip = IPy.IP(ip_string)
-    if ip in IPy.IP('10.0.0.0/8'):
-        return True
-    if ip in IPy.IP('192.168.0.0/16'):
-        return True
-    if ip in IPy.IP('172.16.0.0/12'):
-        return True
-    return False
+    return IPy.IP(ip_string).iptype() != "PUBLIC"
+
+def is_ipv4(ip_string):
+    return IPy.IP(ip_string).version() == 4
 
 def get_ip_of_node(nova_client, name):
     ip = None
@@ -36,7 +32,7 @@ def get_ip_of_node(nova_client, name):
         if server.name == name:
             for network in server.networks.values():
                 for ip in network:
-                    if not is_rfc1918(ip):
+                    if is_ipv4(ip) and not is_rfc1918(ip):
                         return ip
             # Fallthrough... If none are non-rfc1918 just return whatever
             return ip
