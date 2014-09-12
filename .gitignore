@@ -1,0 +1,7 @@
+dist
+help
+build
+venv
+jiocloud.egg-info
+jiocloud/*.pyc
+jiocloud/tests/*.pyc

@@ -90,6 +90,34 @@ class DeploymentOrchestrator(object):
         except (etcd.EtcdError, etcd.EtcdException, HTTPError):
             return False
 
+    def update_own_status(self, hostname, status_type, status_result):
+        status_dir = '/status/%s' % status_type
+        if status_type == 'puppet':
+            if int(status_result) in (4, 6, 1):
+                status_dir = '/status/puppet/failed'
+                delete_dir = '/status/puppet/success'
+            else:
+                status_dir = '/status/puppet/success'
+                delete_dir = '/status/puppet/failed'
+        elif status_type == 'validation':
+            if int(status_result) == 0:
+                status_dir = '/status/validation/success'
+                delete_dir = '/status/validation/failed'
+            else:
+                status_dir = '/status/validation/failed'
+                delete_dir = '/status/validation/success'
+        else:
+            raise Exception('Invalid status_type:%s' % status_type)
+
+        self.etcd.write('%s/%s' % (status_dir, hostname), str(time.time()))
+
+        try:
+          self.etcd.delete('%s/%s' % (delete_dir, hostname))
+          return True
+        except KeyError:
+          return False
+
+
     def update_own_info(self, hostname, interval=60, version=None):
         version = version or self.local_version()
         if not version:
@@ -178,6 +206,11 @@ def main(argv=sys.argv[1:]):
                                                  help='Get or set local version')
     local_version_parser.add_argument('version', nargs='?', help="If given, set this as the local version")
 
+    update_own_status_parser = subparsers.add_parser('update_own_status', help="Update info related to the current status of a host")
+    update_own_status_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
+                                          help="This system's hostname")
+    update_own_status_parser.add_argument('status_type', type=str, help="Type of status to update")
+    update_own_status_parser.add_argument('status_result', type=int, help="Command exit code used to derive status")
     update_own_info_parser = subparsers.add_parser('update_own_info', help="Update host's own info")
     update_own_info_parser.add_argument('--interval', type=int, default=60, help="Update interval")
     update_own_info_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
@@ -205,6 +238,8 @@ def main(argv=sys.argv[1:]):
         print do.current_version()
     elif args.subcmd == 'check_single_version':
         sys.exit(not do.check_single_version(args.version, args.verbose))
+    elif args.subcmd == 'update_own_status':
+        do.update_own_status(args.hostname, args.status_type, args.status_result)
     elif args.subcmd == 'update_own_info':
         do.update_own_info(args.hostname, version=args.version)
     elif args.subcmd == 'ping':
