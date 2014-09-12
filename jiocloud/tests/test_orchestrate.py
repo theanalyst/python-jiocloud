@@ -170,7 +170,6 @@ class OrchestrateTests(unittest.TestCase):
                                                           '12345678')]
                         expected_delete_calls = [mock.call('/status/%s/%s/testhost' %
                                                           (status_type, opposite_result[status]))]
-                        print "%s|%s" % (status_result, status_type)
                         self.assertEquals(etcd.write.call_args_list, expected_write_calls)
                         self.assertEquals(etcd.delete.call_args_list, expected_delete_calls)
 
