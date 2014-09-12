@@ -146,6 +146,34 @@ class OrchestrateTests(unittest.TestCase):
 
             self.assertEquals(self.do.running_versions(), [])
 
+    def test_update_own_status(self):
+        test_input = {
+            'puppet': {'failed': [1,4,6,'1'],
+                       'success': [0, 2]},
+            'validation': {'failed': [1, '1'],
+                           'success': [0]}
+        }
+        opposite_result = {'failed': 'success', 'success': 'failed'}
+        for status_type,value in test_input.items():
+            for status,status_results in value.items():
+                for status_result in status_results:
+                    with nested(mock.patch.object(self.do, '_etcd'),
+                                mock.patch('time.time')) as (etcd, time):
+                        time.return_value = 12345678
+
+                        self.do.update_own_status(hostname='testhost',
+                                                  status_type=status_type,
+                                                  status_result=status_result)
+
+                        expected_write_calls = [mock.call('/status/%s/%s/testhost' %
+                                                          (status_type, status),
+                                                          '12345678')]
+                        expected_delete_calls = [mock.call('/status/%s/%s/testhost' %
+                                                          (status_type, opposite_result[status]))]
+                        print "%s|%s" % (status_result, status_type)
+                        self.assertEquals(etcd.write.call_args_list, expected_write_calls)
+                        self.assertEquals(etcd.delete.call_args_list, expected_delete_calls)
+
     def test_update_own_info(self):
         with nested(mock.patch.object(self.do, '_etcd'),
                     mock.patch('time.time')) as (etcd, time):
