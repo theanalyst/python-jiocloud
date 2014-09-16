@@ -22,6 +22,7 @@ import socket
 import time
 import urllib3
 import urlparse
+import os
 from urllib3.exceptions import HTTPError
 
 
@@ -146,6 +147,26 @@ class DeploymentOrchestrator(object):
                 return []
         return set([x.key.split('/')[-1] for x in res.children])
 
+    def get_failures(self, hosts):
+        try:
+            val_failures = list(self.etcd.read('/status/validation/failed').leaves)
+        except KeyError:
+            val_failures = []
+        try:
+            puppet_failures = list(self.etcd.read('/status/puppet/failed').leaves)
+        except KeyError:
+            puppet_failures = []
+        if hosts:
+            for host in val_failures:
+                print "Validation Failure:%s" % os.path.basename(host.key)
+            for host in puppet_failures:
+                print "Puppet Failure:%s" % os.path.basename(host.key)
+        else:
+            print "Validation Failures:%s"        % len(val_failures)
+            print "Puppet Validation Failures:%s" % len(puppet_failures)
+        return len(puppet_failures) == 0 and len(val_failures) == 0
+
+
     def verify_hosts(self, version, hosts):
         return set(hosts).issubset(self.hosts_at_version(version))
 
@@ -205,12 +226,13 @@ def main(argv=sys.argv[1:]):
     local_version_parser = subparsers.add_parser('local_version',
                                                  help='Get or set local version')
     local_version_parser.add_argument('version', nargs='?', help="If given, set this as the local version")
-
     update_own_status_parser = subparsers.add_parser('update_own_status', help="Update info related to the current status of a host")
     update_own_status_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
                                           help="This system's hostname")
     update_own_status_parser.add_argument('status_type', type=str, help="Type of status to update")
     update_own_status_parser.add_argument('status_result', type=int, help="Command exit code used to derive status")
+    list_failures_parser = subparsers.add_parser('get_failures', help="Return a list of every failed host. Returns the number of hosts in a failed state")
+    list_failures_parser.add_argument('--hosts', action='store_true', help="list out all hosts in each state and not just the number in each state")
     update_own_info_parser = subparsers.add_parser('update_own_info', help="Update host's own info")
     update_own_info_parser.add_argument('--interval', type=int, default=60, help="Update interval")
     update_own_info_parser.add_argument('--hostname', type=str, default=socket.gethostname(),
@@ -260,6 +282,8 @@ def main(argv=sys.argv[1:]):
         buffer = sys.stdin.read().strip()
         hosts = buffer.split('\n')
         return not do.verify_hosts(args.version, hosts)
+    elif args.subcmd == 'get_failures':
+        return not do.get_failures(args.hosts)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         msg = {do.UPDATE_AVAILABLE: "Yes, there is an update pending",
