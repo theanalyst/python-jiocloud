@@ -124,7 +124,7 @@ class DeploymentOrchestrator(object):
             data = self.etcd.read('/available_services/', recursive=True)
         except KeyError:
             return False
-        leaves = list(data.leaves())
+        leaves = list(data.leaves)
         service_address_parser = {}
         hiera_data = {}
         for leaf in leaves:
