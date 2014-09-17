@@ -103,12 +103,11 @@ class OrchestrateTests(unittest.TestCase):
     class EtcdResult(object):
         def __init__(self, children):
             self._children = children
+            self.leaves = children
 
         @property
         def children(self):
             return iter(self._children)
-        def leaves(self):
-            return list(self._children)
 
     def test_hosts_at_version_none_but_dir_exists(self):
         with mock.patch.object(self.do, '_etcd') as etcd:
