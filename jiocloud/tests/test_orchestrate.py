@@ -152,12 +152,14 @@ class OrchestrateTests(unittest.TestCase):
     # test the correct thing gets written
     def test_publish_service(self):
         with nested(mock.patch.object(self.do, '_etcd'),
+                    mock.patch.object(self.do, 'get_roles'),
                     mock.patch('netifaces.interfaces'),
                     mock.patch('socket.gethostname'),
-                    mock.patch('netifaces.ifaddresses')
-                    ) as (etcd, interfaces, hostname, addrs):
+                    mock.patch('netifaces.ifaddresses'),
+                    ) as (etcd, get_roles, interfaces, hostname, addrs):
             interfaces.return_value = ['lo', 'eth0']
             hostname.return_value = 'foorole123-testid'
+            get_roles.return_value = ['foorole']
             addrs.return_value = {2: [{'addr': '10.0.0.1'}]}
             self.do.publish_service()
             expected_write_calls = [mock.call('/available_services/foorole/foorole123-testid',

@@ -105,17 +105,29 @@ class DeploymentOrchestrator(object):
                 ips[i_name] = i_face[inet_num][0]['addr']
         return ips
 
+    def get_roles(self, service_file='/var/lib/puppet/profile_list.txt'):
+        try:
+            with open(service_file, 'r') as fp:
+                    return fp.read().strip().split("\n")
+        except IOError, e:
+            if e.errno == errno.ENOENT:
+                return []
+            raise
+
     # publish addresses for all services not in our ignore list
     def publish_service(self, rolestoignore=None):
         hostname = socket.gethostname()
-        m = re.search(r"([a-z]+)\d+-?", hostname)
-        role = m.group(1)
-        if not (rolestoignore and role in rolestoignore):
-            ips = self.get_ips()
-            self.etcd.write('/available_services/%s/%s' % (role, hostname), json.dumps(ips))
-            return ips
-        else:
-            return None
+        data = {}
+        roles = self.get_roles()
+        for role in roles:
+            print role
+            if not (rolestoignore and role in rolestoignore):
+                ips = self.get_ips()
+                self.etcd.write('/available_services/%s/%s' % (role, hostname), json.dumps(ips))
+                data[role] = ips
+            else:
+                return None
+        return data
 
     # retrieve all address information for all services, and organize into the structure:
     # 'services::<role>::interface: [list of ips]'
