@@ -110,33 +110,45 @@ class TestApplyResources(unittest.TestCase):
             ids = [10,11,12]
             status = {10: ['ACTIVE', 'BUILD', 'BUILD'], 11: ['ACTIVE', 'BUILD'], 12: ['ACTIVE', 'BUILD']}
 
+            servers = {}
             def fake_create_server(*args, **kwargs):
-                return ids.pop()
+                server_id = ids.pop()
+                servers[kwargs['name']] = server_id
+                return server_id
 
             create_server.side_effect = fake_create_server
+            self.add_floating_ip_called = False
 
             def server_get(id):
                 mm = mock.MagicMock()
-                mm.status = status[id].pop()
+                if status[id]:
+                    mm.status = status[id].pop()
+                    mm.add_floating_ip.side_effect = Exception
+                else:
+                    def add_floating_ip(ip):
+                        self.assertEquals(ip, '1.2.3.4')
+                        self.add_floating_ip_called = True
+
+                    mm.add_floating_ip.side_effect = add_floating_ip
                 return mm
 
             get_nova_client.return_value.servers.get.side_effect = server_get
+            get_nova_client.return_value.floating_ips.create.return_value.ip = '1.2.3.4'
 
             file_mock.side_effect = lambda f: StringIO.StringIO('test user data')
 
             apply_resources.create_servers([{'name': 'foo1', 'networks':  ['someid']},
                                             {'name': 'foo2', 'networks':  ['someid']},
-                                            {'name': 'foo3'}
+                                            {'name': 'foo3', 'assign_floating_ip': True}
                                             ], 'somefile', 'somekey')
 
             create_server.assert_any_call(mock.ANY, 'somekey', name='foo1', networks=['someid'])
             create_server.assert_any_call(mock.ANY, 'somekey', name='foo2', networks=['someid'])
-            create_server.assert_any_call(mock.ANY, 'somekey', name='foo3')
+            create_server.assert_any_call(mock.ANY, 'somekey', name='foo3', assign_floating_ip=True)
 
             for call in create_server.call_args_list:
                 self.assertEquals(call[0][0].read(), 'test user data')
 
             for s in status.values():
                 self.assertEquals(s, [], 'create_servers stopped polling before server left BUILD state')
-
-
+            self.assertTrue(self.add_floating_ip_called)

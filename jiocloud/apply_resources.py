@@ -68,10 +68,16 @@ class ApplyResources(object):
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
     def create_servers(self, servers, userdata, key_name=None):
+
         ids = set()
+        floating_ip_servers = set()
         for s in servers:
             userdata_file = file(userdata)
-            ids.add(self.create_server(userdata_file, key_name, **s))
+            server_id = self.create_server(userdata_file, key_name, **s)
+            ids.add(server_id)
+
+            if s.get('assign_floating_ip'):
+                floating_ip_servers.add(server_id)
 
         nova_client = self.get_nova_client()
 
@@ -80,10 +86,17 @@ class ApplyResources(object):
             time.sleep(5)
             for id in ids:
                 instance = nova_client.servers.get(id)
-                print "%s: %s" % (id, instance.status)
+                print "%s (%s): %s" % (instance.name, id, instance.status)
                 if instance.status != 'BUILD':
                     done.add(id)
             ids = ids.difference(done)
+
+        for server_id in floating_ip_servers:
+            ip = nova_client.floating_ips.create()
+            instance = nova_client.servers.get(server_id)
+            print "Assigning %s to %s (%s)" % (ip.ip, instance.name, id)
+            instance.add_floating_ip(ip.ip)
+
 
     def create_server(self,
                       userdata_file,
@@ -114,9 +127,21 @@ class ApplyResources(object):
     def delete_servers(self, project_tag):
         nova_client = self.get_nova_client()
         servers = self.get_existing_servers(project_tag=project_tag, attr_name='id')
+        ip_to_server_map = {ip.instance_id: ip for ip in nova_client.floating_ips.list()}
+        ips_to_delete = set()
         for uuid in servers:
             print "Deleting uuid: %s"%(uuid)
-            nova_client.servers.delete(uuid)
+            server = nova_client.servers.get(uuid)
+            if uuid in ip_to_server_map:
+                ip = ip_to_server_map[uuid]
+                server.remove_floating_ip(ip.ip)
+                ips_to_delete.add(ip)
+            server.delete()
+
+        for ip in ips_to_delete:
+            print "Deleting floating ip: %s" % (ip.ip,)
+            ip.delete()
+
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
