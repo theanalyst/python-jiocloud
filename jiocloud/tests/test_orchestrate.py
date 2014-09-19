@@ -183,6 +183,35 @@ class OrchestrateTests(unittest.TestCase):
                               u'services::foo::eth0': [u'10.0.0.1'],
                               u'services::foo::lo': [u'10.0.0.1']})
 
+    def test_get_failures(self):
+        results = {
+            'should_pass': [
+                [],
+                {'puppet': [self.EtcdKey('/status/puppet/failed')]},
+                {'validation': [self.EtcdKey('/status/validation/failed')]},
+            ],
+            'should_fail': [
+                {'puppet': [self.EtcdKey('/status/puppet/failed/foo')]},
+                {'validation': [self.EtcdKey('/status/validation/failed/bar')]},
+            ]
+        }
+        for k,v in results.iteritems():
+            for data in v:
+                with mock.patch.object(self.do, '_etcd') as etcd:
+                    def mock_read(arg):
+                        if arg == '/status/puppet/failed':
+                            return self.EtcdResult(data['puppet'])
+                        if arg == '/status/validation/failed':
+                            return self.EtcdResult(data['validation'])
+                    if data == []:
+                        etcd.read.return_value = self.EtcdResult(data)
+                    else:
+                        etcd.read.side_effect = mock_read
+                    if k == 'should_pass':
+                        self.assertEquals(True, self.do.get_failures(self))
+                    else:
+                        self.assertEquals(False, self.do.get_failures(self))
+
     def test_update_own_status(self):
         test_input = {
             'puppet': {'failed': [1,4,6,'1'],

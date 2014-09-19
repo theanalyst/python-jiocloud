@@ -223,24 +223,22 @@ class DeploymentOrchestrator(object):
         return set([x.key.split('/')[-1] for x in res.children])
 
     def get_failures(self, hosts):
-        try:
-            val_failures = list(self.etcd.read('/status/validation/failed').leaves)
-        except KeyError:
-            val_failures = []
-        try:
-            puppet_failures = list(self.etcd.read('/status/puppet/failed').leaves)
-        except KeyError:
-            puppet_failures = []
-        if hosts:
-            for host in val_failures:
-                print "Validation Failure:%s" % os.path.basename(host.key)
-            for host in puppet_failures:
-                print "Puppet Failure:%s" % os.path.basename(host.key)
-        else:
-            print "Validation Failures:%s"        % len(val_failures)
-            print "Puppet Validation Failures:%s" % len(puppet_failures)
-        return len(puppet_failures) == 0 and len(val_failures) == 0
-
+        failures = {}
+        for i in ['validation', 'puppet']:
+            try:
+                dir = '/status/%s/failed' % (i)
+                val = list(self.etcd.read(dir).leaves)
+                failures[i] = []
+                for v in val:
+                    failures[i] = [v for v in val if v.key != dir]
+            except KeyError:
+                failures[i] = []
+            if hosts:
+                for host in failures[i]:
+                    print '%s failure:%s' % (i.capitalize(), os.path.basename(host.key))
+            else:
+                print "%s failures :%s" % (i.capitalize(),len(failures[i]))
+        return len(failures['puppet']) == 0 and len(failures['validation']) == 0
 
     def verify_hosts(self, version, hosts):
         return set(hosts).issubset(self.hosts_at_version(version))
