@@ -36,7 +36,7 @@ def get_ip_of_node(nova_client, name):
                         return ip
             # Fallthrough... If none are non-rfc1918 just return whatever
             return ip
-        raise Exception('Server not found')
+    raise Exception('Server not found')
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
