@@ -2,6 +2,7 @@
 import argparse
 import os
 import time
+import utils
 import yaml
 from novaclient import client as novaclient
 
@@ -142,6 +143,25 @@ class ApplyResources(object):
             print "Deleting floating ip: %s" % (ip.ip,)
             ip.delete()
 
+    def ssh_config(self, servers):
+        out = ''
+        bastions = filter(lambda s:s.get('assign_floating_ip', False), servers)
+        if bastions:
+            bastion = utils.get_ip_of_node(self.get_nova_client(), bastions[0]['name'])
+        else:
+            bastion = None
+
+        out += 'StrictHostKeyChecking no\n'
+        out += 'UserKnownHostsFile /dev/null\n'
+        out += '\n'
+        for s in servers:
+            out += 'Host %s\n' % (s['name'],)
+            ip = utils.get_ip_of_node(apply_resources.get_nova_client(),  s['name'])
+            out += '    HostName %s\n' % (ip,)
+            if not s.get('assign_floating_ip', False) and bastion:
+                out += '    ProxyCommand ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %%r@%s nc %%h %%p\n' % (bastion,)
+            out += '\n'
+        return out
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
@@ -160,6 +180,10 @@ if __name__ == '__main__':
     list_parser.add_argument('resource_file_path', help='Path to resource file')
     list_parser.add_argument('--project_tag', help='Project tag')
 
+    ssh_config_parser  = subparsers.add_parser('ssh_config', help='Generate ssh config to connect to servers')
+    ssh_config_parser.add_argument('resource_file_path', help='Path to resource file')
+    ssh_config_parser.add_argument('--project_tag', help='Project tag')
+
     args = argparser.parse_args()
     if args.action == 'apply':
         apply_resources = ApplyResources()
@@ -175,3 +199,8 @@ if __name__ == '__main__':
         resources = apply_resources.read_resources(args.resource_file_path)
         desired_servers = apply_resources.generate_desired_servers(resources, args.project_tag)
         print '\n'.join([s['name'] for s in desired_servers])
+    elif args.action == 'ssh_config':
+        apply_resources = ApplyResources()
+        resources = apply_resources.read_resources(args.resource_file_path)
+        servers = apply_resources.generate_desired_servers(resources, args.project_tag)
+        print apply_resources.ssh_config(servers)
