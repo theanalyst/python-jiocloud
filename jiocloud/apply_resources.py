@@ -70,9 +70,9 @@ class ApplyResources(object):
                 servers_to_create.append(server)
         return servers_to_create
 
-    def servers_to_create(self, resource_file, mappings_file='/dev/null', project_tag=None):
+    def servers_to_create(self, resource_file, mappings_file=None, project_tag=None):
         resources = self.read_resources(resource_file)
-        mappings = self.read_mappings(mappings_file)
+        mappings = mappings_file and self.read_mappings(mappings_file) or {}
         existing_servers = self.get_existing_servers(project_tag=project_tag)
         desired_servers = self.generate_desired_servers(resources, mappings, project_tag)
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
