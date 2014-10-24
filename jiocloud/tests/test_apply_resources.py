@@ -61,26 +61,31 @@ class TestApplyResources(unittest.TestCase):
     def test_generate_desired_servers(self):
         apply_resources = ApplyResources()
         self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 5 }}, project_tag='foo'),
-                          [{'name': 'foo1_foo', 'number': 5},
-                           {'name': 'foo2_foo', 'number': 5},
-                           {'name': 'foo3_foo', 'number': 5},
-                           {'name': 'foo4_foo', 'number': 5},
-                           {'name': 'foo5_foo', 'number': 5}
+                          [{'name': 'foo1_foo'},
+                           {'name': 'foo2_foo'},
+                           {'name': 'foo3_foo'},
+                           {'name': 'foo4_foo'},
+                           {'name': 'foo5_foo'},
                           ])
-        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 5 },
-                                                                    'bar': {'number': 2 }}, project_tag='foo'),
-                          [{'name': 'foo1_foo', 'number': 5},
-                           {'name': 'foo2_foo', 'number': 5},
-                           {'name': 'foo3_foo', 'number': 5},
-                           {'name': 'foo4_foo', 'number': 5},
-                           {'name': 'foo5_foo', 'number': 5},
-                           {'name': 'bar1_foo', 'number': 2},
-                           {'name': 'bar2_foo', 'number': 2},
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 5,
+                                                                            'network': 'public'},
+                                                                    'bar': {'number': 2,
+                                                                            'network': 'private',
+                                                                            'other': 'something'}},
+                                                                    mappings={'network': {'private': 'mappedprivate'}},
+                                                                    project_tag='foo'),
+                          [{'name': 'foo1_foo', 'network': 'public'},
+                           {'name': 'foo2_foo', 'network': 'public'},
+                           {'name': 'foo3_foo', 'network': 'public'},
+                           {'name': 'foo4_foo', 'network': 'public'},
+                           {'name': 'foo5_foo', 'network': 'public'},
+                           {'name': 'bar1_foo', 'network': 'mappedprivate', 'other': 'something'},
+                           {'name': 'bar2_foo', 'network': 'mappedprivate', 'other': 'something'},
                           ])
         self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0 },
                                                                     'bar': {'number': 2 }}),
-                          [{'name': 'bar1', 'number': 2},
-                           {'name': 'bar2', 'number': 2}])
+                          [{'name': 'bar1'},
+                           {'name': 'bar2'}])
 
     def test_servers_to_create(self):
         apply_resources = ApplyResources()
@@ -96,8 +101,8 @@ class TestApplyResources(unittest.TestCase):
             self.fake_server_data(nova_client)
 
             self.assertEquals(apply_resources.servers_to_create('fake_path'),
-                              [{'name': 'foo1', 'number': 1},
-                               {'name': 'bar1', 'number': 2}])
+                              [{'name': 'foo1'},
+                               {'name': 'bar1'}])
 
     def test_create_servers(self):
         apply_resources = ApplyResources()
