@@ -29,6 +29,10 @@ class ApplyResources(object):
         fp = file(path)
         return yaml.load(fp)['resources']
 
+    def read_mappings(self, path):
+        fp = file(path)
+        return yaml.load(fp)
+
     def get_nova_client(self):
         if not self.nova_client:
             self.nova_client = novaclient.Client("1.1", **get_nova_creds_from_env())
@@ -46,7 +50,7 @@ class ApplyResources(object):
         return [getattr(s, attr_name) for s in servers]
 
 
-    def generate_desired_servers(self, resources, project_tag=None):
+    def generate_desired_servers(self, resources, mappings={}, project_tag=None):
         """
         Convert from a hash of servers resources to the
         hash of all server names that should be created
@@ -58,14 +62,19 @@ class ApplyResources(object):
             for i in range(int(v['number'])):
                 # NOTE ideally, this would not contain the caridinatlity
                 # b/c it is not needed by this hash
-                server = {'name': "%s%d%s"%(k, i+1, suffix)}
-                servers_to_create.append(dict(server.items() + v.items()))
+                server = {'name': "%s%d%s" % (k, i+1, suffix)}
+                for k_,v_ in v.iteritems():
+                    if k_ == 'number':
+                        continue
+                    server[k_] = mappings.get(k_, {}).get(v_, v_)
+                servers_to_create.append(server)
         return servers_to_create
 
-    def servers_to_create(self, resource_file, project_tag=None):
+    def servers_to_create(self, resource_file, mappings_file=None, project_tag=None):
         resources = self.read_resources(resource_file)
+        mappings = mappings_file and self.read_mappings(mappings_file) or {}
         existing_servers = self.get_existing_servers(project_tag=project_tag)
-        desired_servers = self.generate_desired_servers(resources, project_tag)
+        desired_servers = self.generate_desired_servers(resources, mappings, project_tag)
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
     def create_servers(self, servers, userdata, key_name=None):
@@ -170,6 +179,7 @@ if __name__ == '__main__':
     apply_parser  = subparsers.add_parser('apply', help='Apply a resource file')
     apply_parser.add_argument('resource_file_path', help='Path to resource file')
     apply_parser.add_argument('userdata', help='Path of userdata to apply to all nodes')
+    apply_parser.add_argument('--mappings', help='Path to mappings file')
     apply_parser.add_argument('--project_tag', help='Project tag')
     apply_parser.add_argument('--key_name', help='Name of key pair')
 
@@ -182,13 +192,15 @@ if __name__ == '__main__':
 
     ssh_config_parser  = subparsers.add_parser('ssh_config', help='Generate ssh config to connect to servers')
     ssh_config_parser.add_argument('resource_file_path', help='Path to resource file')
+    ssh_config_parser.add_argument('--mappings', help='Path to mappings file')
     ssh_config_parser.add_argument('--project_tag', help='Project tag')
 
     args = argparser.parse_args()
     if args.action == 'apply':
         apply_resources = ApplyResources()
         servers = apply_resources.servers_to_create(args.resource_file_path,
-                                                     project_tag=args.project_tag)
+                                                    args.mappings,
+                                                    project_tag=args.project_tag)
         apply_resources.create_servers(servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
         if not args.project_tag:
@@ -197,10 +209,11 @@ if __name__ == '__main__':
     elif args.action == 'list':
         apply_resources = ApplyResources()
         resources = apply_resources.read_resources(args.resource_file_path)
-        desired_servers = apply_resources.generate_desired_servers(resources, args.project_tag)
+        desired_servers = apply_resources.generate_desired_servers(resources, project_tag=args.project_tag)
         print '\n'.join([s['name'] for s in desired_servers])
     elif args.action == 'ssh_config':
         apply_resources = ApplyResources()
         resources = apply_resources.read_resources(args.resource_file_path)
+        mappings = apply_resources.read_mappings(args.mappings or '/dev/null')
         servers = apply_resources.generate_desired_servers(resources, args.project_tag)
         print apply_resources.ssh_config(servers)
