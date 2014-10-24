@@ -209,7 +209,7 @@ if __name__ == '__main__':
     elif args.action == 'list':
         apply_resources = ApplyResources()
         resources = apply_resources.read_resources(args.resource_file_path)
-        desired_servers = apply_resources.generate_desired_servers(resources, args.project_tag)
+        desired_servers = apply_resources.generate_desired_servers(resources, project_tag=args.project_tag)
         print '\n'.join([s['name'] for s in desired_servers])
     elif args.action == 'ssh_config':
         apply_resources = ApplyResources()
