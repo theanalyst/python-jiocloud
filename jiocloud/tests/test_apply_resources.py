@@ -81,11 +81,18 @@ class TestApplyResources(unittest.TestCase):
                            {'name': 'foo5_foo', 'network': 'public'},
                            {'name': 'bar1_foo', 'network': 'mappedprivate', 'other': 'something'},
                            {'name': 'bar2_foo', 'network': 'mappedprivate', 'other': 'something'},
-                          ])
-        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0 },
-                                                                    'bar': {'number': 2 }}),
+                           ])
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0},
+                                                                    'bar': {'number': 2}}),
                           [{'name': 'bar1'},
                            {'name': 'bar2'}])
+        self.assertEquals(apply_resources.generate_desired_servers({'foo': {'number': 0},
+                                                                    'bar': {'number': 2}},
+                                                                   number_overrides={'bar': 4}),
+                          [{'name': 'bar1'},
+                           {'name': 'bar2'},
+                           {'name': 'bar3'},
+                           {'name': 'bar4'}])
 
     def test_servers_to_create(self):
         apply_resources = ApplyResources()
