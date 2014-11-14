@@ -50,7 +50,7 @@ class ApplyResources(object):
         return [getattr(s, attr_name) for s in servers]
 
 
-    def generate_desired_servers(self, resources, mappings={}, project_tag=None):
+    def generate_desired_servers(self, resources, mappings={}, project_tag=None, number_overrides={}):
         """
         Convert from a hash of servers resources to the
         hash of all server names that should be created
@@ -59,7 +59,7 @@ class ApplyResources(object):
 
         servers_to_create = []
         for k,v in resources.iteritems():
-            for i in range(int(v['number'])):
+            for i in range(int(number_overrides.get(k, v['number']))):
                 # NOTE ideally, this would not contain the caridinatlity
                 # b/c it is not needed by this hash
                 server = {'name': "%s%d%s" % (k, i+1, suffix)}
@@ -70,11 +70,11 @@ class ApplyResources(object):
                 servers_to_create.append(server)
         return servers_to_create
 
-    def servers_to_create(self, resource_file, mappings_file=None, project_tag=None):
+    def servers_to_create(self, resource_file, mappings_file=None, project_tag=None, number_overrides={}):
         resources = self.read_resources(resource_file)
         mappings = mappings_file and self.read_mappings(mappings_file) or {}
         existing_servers = self.get_existing_servers(project_tag=project_tag)
-        desired_servers = self.generate_desired_servers(resources, mappings, project_tag)
+        desired_servers = self.generate_desired_servers(resources, mappings, project_tag, number_overrides=number_overrides)
         return [elem for elem in desired_servers if elem['name'] not in existing_servers ]
 
     def create_servers(self, servers, userdata, key_name=None):
@@ -182,6 +182,7 @@ if __name__ == '__main__':
     apply_parser.add_argument('--mappings', help='Path to mappings file')
     apply_parser.add_argument('--project_tag', help='Project tag')
     apply_parser.add_argument('--key_name', help='Name of key pair')
+    apply_parser.add_argument('--override_instance_number', help='Override number of instances of a type. Values is e.g. "cp=5:ct=2" to start 5 cp nodes, 2 ct nodes and go with defaults for the rest')
 
     delete_parser = subparsers.add_parser('delete', help='Delete a project')
     delete_parser.add_argument('project_tag', help='Id of project to delete')
@@ -198,9 +199,14 @@ if __name__ == '__main__':
     args = argparser.parse_args()
     if args.action == 'apply':
         apply_resources = ApplyResources()
+        if args.override_instance_number:
+            number_overrides = {a:int(b) for (a, b) in [x.split('=') for x in args.override_instance_number.split(':')]}
+        else:
+            number_overrides = {}
         servers = apply_resources.servers_to_create(args.resource_file_path,
                                                     args.mappings,
-                                                    project_tag=args.project_tag)
+                                                    project_tag=args.project_tag,
+                                                    number_overrides=number_overrides)
         apply_resources.create_servers(servers, args.userdata, key_name=args.key_name)
     elif args.action == 'delete':
         if not args.project_tag:
