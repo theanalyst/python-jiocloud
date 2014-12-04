@@ -96,6 +96,12 @@ class DeploymentOrchestrator(object):
             return
         version_dir = '/running_version/%s' % version
         self.consul.kv.set('%s/%s' % (version_dir, hostname), str(time.time()))
+        versions = self.running_versions()
+        versions.remove(version)
+        # check if other versions are registered for the same host
+        for v in versions:
+            if hostname in self.hosts_at_version(v):
+                self.consul.kv.__delitem__('%s/%s/%s' % ('running_version', v, hostname))
 
     # this call may not scale
     # if pulls down all host version records as
