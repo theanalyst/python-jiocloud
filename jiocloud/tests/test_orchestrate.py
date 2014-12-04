@@ -90,9 +90,9 @@ class OrchestrateTests(unittest.TestCase):
     def test_running_versions(self):
         with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock) as consul:
             consul.return_value.kv.find.return_value = [
-                '/running_version/v10',
-                '/running_version/v11',
-                '/running_version/v12'
+                'running_version/v10',
+                'running_version/v11',
+                'running_version/v12'
                 ]
             self.assertEquals(self.do.running_versions(),
                               set(['v10', 'v11', 'v12']))
@@ -100,7 +100,7 @@ class OrchestrateTests(unittest.TestCase):
     def test_running_versions_none(self):
         with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock) as consul:
             consul.return_value.kv.find.return_value = [
-                '/running_version',
+                'running_version',
                 ]
             self.assertEquals(self.do.running_versions(), set())
 
