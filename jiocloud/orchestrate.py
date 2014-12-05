@@ -50,6 +50,14 @@ class DeploymentOrchestrator(object):
     def trigger_update(self, new_version):
         self.consul.kv.set('/current_version', new_version)
 
+    def local_health(self, hostname=socket.gethostname(), verbose=False):
+        results = self.consul.health.node(hostname)
+        failing = [x for x in results if x['Status'] == 'critical' ]
+        if verbose:
+            for x in failing:
+                print '%s: %s' % (x['Name'], x['Output'])
+        return failing
+
     def pending_update(self):
         local_version = self.local_version()
         try:
@@ -200,6 +208,9 @@ def main(argv=sys.argv[1:]):
     pending_update = subparsers.add_parser('pending_update',
                                            help='Check for pending update')
 
+    local_health_parser = subparsers.add_parser('local_health', help='Check health of local system')
+    local_health_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
+
     local_version_parser = subparsers.add_parser('local_version',
                                                  help='Get or set local version')
     local_version_parser.add_argument('version', nargs='?', help="If given, set this as the local version")
@@ -260,6 +271,9 @@ def main(argv=sys.argv[1:]):
         return not do.verify_hosts(args.version, hosts)
     elif args.subcmd == 'get_failures':
         return not do.get_failures(args.hosts, args.show_warnings)
+    elif args.subcmd == 'local_health':
+        failures = do.local_health(socket.gethostname(), args.verbose)
+        return len(failures)
     elif args.subcmd == 'pending_update':
         pending_update = do.pending_update()
         msg = {do.UPDATE_AVAILABLE: "Yes, there is an update pending",
