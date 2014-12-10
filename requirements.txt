@@ -6,3 +6,4 @@ PyYAML
 netifaces
 consulate
 tornado
+python-hpilo
