@@ -7,3 +7,4 @@ netifaces
 consulate
 tornado
 python-hpilo
+python-ironicclient

@@ -29,5 +29,5 @@ setup(
     include_package_data=True,
     license='Apache 2.0',
     keywords='etcd openstack cloud',
-    install_requires=['python-etcd', 'IPy', 'mock', 'python-novaclient', 'PyYAML', 'netifaces', 'consulate', 'tornado', 'python-hpilo'],
+    install_requires=['python-etcd', 'IPy', 'mock', 'python-novaclient', 'PyYAML', 'netifaces', 'consulate', 'tornado', 'python-hpilo', 'python-ironicclient'],
 )
