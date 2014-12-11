@@ -63,6 +63,8 @@ class DeploymentOrchestrator(object):
         try:
             if (self.current_version() == local_version):
                 return self.UP_TO_DATE
+            elif (self.current_version() == None):
+                return self.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
             else:
                 return self.UPDATE_AVAILABLE
         except:
@@ -72,7 +74,11 @@ class DeploymentOrchestrator(object):
                 return self.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
 
     def current_version(self):
-        return str(self.consul.kv.get('/current_version')).strip()
+        cur_ver = self.consul.kv.get('/current_version')
+        if cur_ver == None:
+            return None
+        else:
+            return str(cur_ver).strip()
 
     def ping(self):
         try:
