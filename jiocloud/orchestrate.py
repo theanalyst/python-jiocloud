@@ -52,7 +52,8 @@ class DeploymentOrchestrator(object):
 
     def local_health(self, hostname=socket.gethostname(), verbose=False):
         results = self.consul.health.node(hostname)
-        failing = [x for x in results if x['Status'] == 'critical' ]
+        failing = [x for x in results if (x['Status'] == 'critical'
+                                          or (x['Status'] == 'warning' and (x['Name'] == 'puppet' or x['Name'] == 'validation'))) ]
         if verbose:
             for x in failing:
                 print '%s: %s' % (x['Name'], x['Output'])
