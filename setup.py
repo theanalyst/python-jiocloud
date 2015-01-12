@@ -30,4 +30,7 @@ setup(
     license='Apache 2.0',
     keywords='etcd openstack cloud',
     install_requires=['python-etcd', 'IPy', 'mock', 'python-novaclient', 'PyYAML', 'netifaces', 'consulate', 'tornado', 'python-hpilo', 'python-ironicclient'],
+    entry_points = {
+        'console_scripts': ['jorc=jiocloud.orchestrate:main'],
+    },
 )
