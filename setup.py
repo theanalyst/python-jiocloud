@@ -18,6 +18,9 @@
 
 from setuptools import setup, find_packages
 
+with open('requirements.txt') as f:
+    install_requires = f.read().splitlines()
+
 setup(
     name='jiocloud',
     version='0.4',
@@ -29,7 +32,7 @@ setup(
     include_package_data=True,
     license='Apache 2.0',
     keywords='consul openstack cloud',
-    install_requires=['urllib3', 'IPy', 'mock', 'python-novaclient', 'PyYAML', 'netifaces', 'consulate', 'tornado', 'python-hpilo', 'python-ironicclient'],
+    install_requires=install_requires,
     entry_points = {
         'console_scripts': ['jorc=jiocloud.orchestrate:main'],
     },
