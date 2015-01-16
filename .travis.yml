@@ -1,9 +1,14 @@
+sudo: false
 language: python
 python:
   - "2.7"
+# use a pip cache
+cache:
+  directories:
+  - $HOME/.pip-cache
 # command to install dependencies
 install:
-  - "pip install -r requirements.txt"
-  - "python setup.py install"
+  - pip install -r requirements.txt --download-cache $HOME/.pip-cache
+  - python setup.py install
 # command to run tests
 script: nosetests
