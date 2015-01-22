@@ -9,6 +9,9 @@ cache:
 # command to install dependencies
 install:
   - pip install -r requirements.txt --download-cache $HOME/.pip-cache
+  - pip install flake8 --download-cache $HOME/.pip-cache
   - python setup.py install
 # command to run tests
-script: nosetests
+script:
+  - nosetests
+  - flake8 --exit-zero jiocloud
