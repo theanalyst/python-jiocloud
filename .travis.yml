@@ -5,10 +5,19 @@ python:
 # use a pip cache
 cache:
   directories:
-  - $HOME/.pip-cache
+  - $PWD/wheelhouse
+# Tell pypi where to find wheels
+env:
+  global:
+    - export PIP_FIND_LINKS=$PWD/wheelhouse
 # command to install dependencies
 install:
-  - pip install -r requirements.txt --download-cache $HOME/.pip-cache
+  - pip wheel -r requirements.txt
+  - pip wheel flake8
+  - pip install -r requirements.txt
+  - pip install flake8
   - python setup.py install
 # command to run tests
-script: nosetests
+script:
+  - nosetests
+  - flake8 --exit-zero jiocloud
