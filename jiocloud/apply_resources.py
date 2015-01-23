@@ -10,15 +10,6 @@ from novaclient import client as novaclient
 Parses a specification of nodes to install and makes it so
 """
 
-def get_nova_creds_from_env():
-    d = {}
-    d['username'] = os.environ['OS_USERNAME']
-    d['api_key'] = os.environ['OS_PASSWORD']
-    d['auth_url'] = os.environ['OS_AUTH_URL']
-    d['project_id'] = os.environ['OS_TENANT_NAME']
-    d['region_name'] = os.environ.get('OS_REGION_NAME')
-    return d
-
 class ApplyResources(object):
     def __init__(self):
         self.nova_client = None
@@ -35,7 +26,7 @@ class ApplyResources(object):
 
     def get_nova_client(self):
         if not self.nova_client:
-            self.nova_client = novaclient.Client("1.1", **get_nova_creds_from_env())
+            self.nova_client = utils.get_nova_client()
         return self.nova_client
 
     def get_existing_servers(self, project_tag=None, attr_name='name'):
@@ -171,6 +162,7 @@ class ApplyResources(object):
                 out += '    ProxyCommand ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null %%r@%s nc %%h %%p\n' % (bastion,)
             out += '\n'
         return out
+
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
