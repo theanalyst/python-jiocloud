@@ -140,7 +140,9 @@ class DeploymentOrchestrator(object):
         result_set = set()
         for x in res:
             if x.split('/')[-2] == version:
-                result_set.add(x.split('/')[-1])
+                host = x.split('/')[-1]
+                if host:
+                    result_set.add(host)
         return result_set
 
     def get_failures(self, hosts=False, show_warnings=False):
