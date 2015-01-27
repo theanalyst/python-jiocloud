@@ -127,12 +127,20 @@ class OrchestrateTests(unittest.TestCase):
                     mock.patch('time.time')
           ) as (consul, time):
             time.return_value = 12345678
+            new_version = 'v14'
+            old_version = 'v13'
+            hostname = 'testhost'
+            consul.return_value.kv.find.return_value = [
+                'running_version/%s/%s' %(old_version, hostname),
+                ]
 
-            self.do.update_own_info(hostname='testhost',
-                                    version='v13')
-            expected_calls = [mock.call('/running_version/v13/testhost',
+            self.do.update_own_info(hostname=hostname,
+                                    version=new_version)
+            expected_calls = [mock.call('/running_version/%s/%s' %(new_version, hostname),
                                         '12345678')]
             self.assertEquals(consul.return_value.kv.set.call_args_list, expected_calls)
+            expected_calls = [mock.call('running_version/%s/%s' %(old_version, hostname))]            
+            self.assertEquals(consul.return_value.kv.__delitem__.call_args_list, expected_calls)
 
     def test_update_own_info_no_version_noop(self):
         with nested(mock.patch.object(self.do, '_consul'),
