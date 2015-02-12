@@ -15,6 +15,7 @@ def get_nova_creds_from_env():
     d['auth_url'] = os.environ['OS_AUTH_URL']
     d['project_id'] = os.environ['OS_TENANT_NAME']
     d['region_name'] = os.environ.get('OS_REGION_NAME')
+    d['cacert'] = os.environ.get('OS_CACERT', None)
     return d
 
 def get_nova_client():
