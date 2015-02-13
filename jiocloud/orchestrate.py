@@ -194,6 +194,15 @@ class DeploymentOrchestrator(object):
                 return ''
             raise
 
+    def debug_timeout(self, version):
+        self.get_failures(True) 
+        if self.hosts_at_version(version):
+            print "Registered hosts in consul with key name Running_Versions are:"
+            for reg_host in self.hosts_at_version(version):
+                print "   %s" % reg_host 
+        else:
+            print "No Hosts registered!"
+
 
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Utility for '
@@ -244,6 +253,9 @@ def main(argv=sys.argv[1:]):
 
     check_single_version_parser = subparsers.add_parser('check_single_version', help="Check if the given version is the only one currently running")
     check_single_version_parser.add_argument('version', help='The version to check for')
+
+    debug_timeout_parser = subparsers.add_parser('debug_timeout', help="Provides debug information when script gets  timed out")
+    debug_timeout_parser.add_argument('version', help="Version to look for")
     check_single_version_parser.add_argument('--verbose', '-v', action='store_true', help='Be verbose')
     args = parser.parse_args(argv)
 
@@ -290,6 +302,8 @@ def main(argv=sys.argv[1:]):
                }[pending_update]
         print msg
         return pending_update
+    elif args.subcmd == 'debug_timeout':
+        return not do.debug_timeout(args.version)
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
