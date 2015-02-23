@@ -73,7 +73,7 @@ class OrchestrateTests(unittest.TestCase):
 
     def test_hosts_at_version_none_but_dir_exists(self):
         with mock.patch.object(self.do, '_consul') as consul:
-            consul.return_value.kv.find.return_value = [
+            consul.kv.find.return_value = [
                 '/running_version/foo/'
                 ]
             self.assertEquals(self.do.hosts_at_version('foo'), set([]))
