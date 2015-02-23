@@ -110,13 +110,28 @@ class OrchestrateTests(unittest.TestCase):
             self.assertEquals(self.do.running_versions(), set())
 
     def test_get_failures_failing(self):
-        with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock) as consul:
-            consul.get_value.health.state.return_value = [1,2]
-            self.assertTrue(self.do.get_failures())
+        #Test warnings
+        def get_warnings(state):
+            if state in ['warning']:
+                return [{"Name":"puppet"}]
+            else:
+                return []
+        with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock):
+            self.do.consul.health.state.side_effect = get_warnings
+            self.assertFalse(self.do.get_failures())
+        #Test critical failures
+        def get_critical_failures(state):
+            if state in ['critical']:
+                return [{"Name":"Failure"}]
+            else:
+                return []
+        with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock):
+            self.do.consul.health.state.side_effect = get_critical_failures
+            self.assertFalse(self.do.get_failures())
 
     def test_get_failures_passing(self):
-        with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock) as consul:
-            consul.get_value.health.state.return_value = []
+        with mock.patch('jiocloud.orchestrate.DeploymentOrchestrator.consul', new_callable=mock.PropertyMock):
+            self.do.consul.health.state.return_value = []
             self.assertTrue(self.do.get_failures())
 
 
