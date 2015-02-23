@@ -106,7 +106,7 @@ class OrchestrateTests(unittest.TestCase):
 
     def test_running_versions_none2(self):
         with mock.patch.object(self.do, '_consul') as consul:
-            consul.read.side_effect = KeyError
+            consul.kv.find.side_effect = KeyError
             self.assertEquals(self.do.running_versions(), set())
 
     def test_get_failures_failing(self):
