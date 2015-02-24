@@ -64,7 +64,7 @@ class DeploymentOrchestrator(object):
         try:
             if (self.current_version() == local_version):
                 return self.UP_TO_DATE
-            elif (self.current_version() == None):
+            elif (self.current_version() is None):
                 return self.NO_CLUE_BUT_WERE_JUST_GETTING_STARTED
             else:
                 return self.UPDATE_AVAILABLE
@@ -76,7 +76,7 @@ class DeploymentOrchestrator(object):
 
     def current_version(self):
         cur_ver = self.consul.kv.get('/current_version')
-        if cur_ver == None:
+        if cur_ver is None:
             return None
         else:
             return str(cur_ver).strip()
